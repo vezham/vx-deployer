@@ -25,6 +25,6 @@ runs:
       shell: bash
       run: | # npm whoami
         bash ${{ github.action_path }}/bin/main.sh
-      env:
-        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-        NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
+      # env:
+      #   GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+      #   NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
