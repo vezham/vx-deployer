@@ -5,7 +5,7 @@ setup_logging() {
     mkdir -p "$LOG_DIR"
     touch "$LOG_FILE"
 
-    echo -e "${GREEN} v0xCLI ${RED}${V_NS}${NC} Executing setup_logging..."
+    echo -e "${GREEN} @vx/cli ${RED}${V_NS}${NC} Executing setup_logging..."
     log_info "Log file created at $LOG_FILE" "LOGGER"
 }
 

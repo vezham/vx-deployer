@@ -9,7 +9,7 @@
 </p>
 <hr>
 
-# v0xFE-deployer
+# @vx/fe-deployer
 
 ### Getting Started
 
