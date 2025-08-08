@@ -19,7 +19,7 @@ jobs:
     secrets: inherit
     with:
       CALLER: scheduler
-  
+
   iam:
     name: scheduler | iam
     uses: vezham/v0xFE-deployer/.github/workflows/iam.yml@timeline

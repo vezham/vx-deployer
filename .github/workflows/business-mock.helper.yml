@@ -66,10 +66,10 @@ jobs:
         run: |
           # wjdlz/NOTE: save token to temporary file
           echo '${{ secrets.VERCEL_SA_KEY }}' > token.json
-          
+
           # wjdlz/NOTE: extract & mask credentials
           ${{ env.CI_DIR }}/vercel/extract-credentials.sh token.json "$GITHUB_OUTPUT"
-          
+
           # wjdlz/NOTE: clean up
           rm token.json
 

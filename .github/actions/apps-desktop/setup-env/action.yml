@@ -4,10 +4,11 @@ description: Setup .env vars
 runs:
   using: composite
   steps:
-    - name: os 
+    - name: os
       shell: bash
       run: echo ${{ runner.os }} # Linux, macOS, Windows
-    
+
+
     # - name: setup | .env vars
     #   uses: SpicyPizza/create-envfile@v1.3
     #   with:
@@ -21,7 +22,7 @@ runs:
     #     envkey_V_CONFIG_ICON: ${{ inputs.CONFIG_ICON }}
     #     envkey_V_APP_URL: ${{ inputs.APP_URL }}
     #     envkey_V_APP_MENU: ${{ inputs.APP_MENU }}
-    
+
     # - name: ci-setup | gen $ENV_VARS
     #   id: gen-env-tokens
     #   run: |
@@ -34,7 +35,7 @@ runs:
     #       echo "V_APP_URL=${{ inputs.APP_URL }}"
     #       echo "V_APP_MENU=${{ inputs.APP_MENU }}"
     #     } >> $GITHUB_ENV
-    
+
     # - name: logs | dir
     #   shell: bash
     #   run: |

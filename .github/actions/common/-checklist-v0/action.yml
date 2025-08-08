@@ -18,7 +18,7 @@ runs:
       run: |
         # Make the check script executable
         chmod +x ${{ github.action_path }}/scripts/index.js
-        
+
         # Run the check script
         node ${{ github.action_path }}/scripts/index.js
 

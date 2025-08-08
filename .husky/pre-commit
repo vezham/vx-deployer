@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+echo \”[vx/Husky] @vx/INFO: pre-commit\”
+pnpm lint-staged -c .lintstagedrc.js

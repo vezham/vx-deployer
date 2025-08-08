@@ -19,7 +19,7 @@ jobs:
       IS_DEBUG: true
       IS_BETA: true
       APP_NAME: one
-      
+
   dev:
     name: dc/dev
     if: ${{ inputs.CALLER == 'deploy/dev' || inputs.CALLER == '-scheduler' }}
@@ -52,7 +52,7 @@ jobs:
     with:
       GIT_BRANCH: deploy/preview
       APP_NAME: one
-      
+
   live:
     name: dc/live
     if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}

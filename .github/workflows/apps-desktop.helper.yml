@@ -60,7 +60,7 @@ jobs:
         pnpm-version: [9.6.0]
         include:
           - os: ubuntu-latest
-            artifact_name:  ${{ inputs.APP_NAME }}-linux-artifacts
+            artifact_name: ${{ inputs.APP_NAME }}-linux-artifacts
             # artifact_glob: 'make/**/*.{deb,rpm,AppImage}'
             artifact_glob: '*-linux-x64'
           - os: macos-latest
@@ -82,7 +82,7 @@ jobs:
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
-        
+
       - name: action | node & pnpm
         uses: vezham/v0xFE-deployer/.github/actions/common/setup-install@timeline
 
@@ -91,7 +91,7 @@ jobs:
 
       - name: action | gen $ENV_VARS
         uses: vezham/v0xFE-deployer/.github/actions/apps-desktop/setup-env@timeline
-      
+
       - name: action | gen-build
         uses: vezham/v0xFE-deployer/.github/actions/apps-desktop/gen-build@timeline
 

@@ -8,11 +8,12 @@ runs:
     - name: os | Create images directory
       shell: bash
       run: echo ${{ runner.os }} # Linux, macOS, Windows
-    
+
+
     # - name: setup | app-icon - ImageMagick
     #   if: runner.os == 'Windows'
     #   uses: mfinelli/setup-imagemagick@v3
-    
+
     # - name: setup | Create images directory
     #   shell: bash
     #   run: mkdir -p images

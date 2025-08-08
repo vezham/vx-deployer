@@ -26,4 +26,3 @@ runs:
           --draft=false \
           --prerelease=false \
           "${assets[@]}"
-      

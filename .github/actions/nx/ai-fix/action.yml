@@ -15,7 +15,7 @@ runs:
       shell: bash
       run: |
         npx nx fix-ci
-    
+
     - name: action | LOG
       if: always()
       uses: vezham/vx-fe-deployer/.github/actions/common/log-artifact@timeline

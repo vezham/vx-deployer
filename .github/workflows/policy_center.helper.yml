@@ -54,7 +54,7 @@ jobs:
         with:
           repository: ${{ env.REPO }}
           ref: ${{ env.BRANCH }}
-        
+
       # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
 
       - name: ci-setup | extract $ENV_TOKENS
@@ -63,10 +63,10 @@ jobs:
         run: |
           # wjdlz/NOTE: save token to temporary file
           echo '${{ secrets.GCP_SA_KEY }}' > token.json
-          
+
           # wjdlz/NOTE: extract & mask credentials
           ${{ env.CI_DIR }}/firebase/extract-credentials.sh token.json "$GITHUB_OUTPUT"
-          
+
           # wjdlz/NOTE: clean up
           rm token.json
 
@@ -116,7 +116,7 @@ jobs:
           envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
           envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
           envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
-        
+
       - name: setup | build
         run: npm run build --name=${{ env.NX_APP_NAME }}
 

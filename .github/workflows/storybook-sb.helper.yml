@@ -56,7 +56,7 @@ jobs:
         with:
           repository: ${{ env.REPO }}
           ref: ${{ env.BRANCH }}
-        
+
       # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
 
       - name: ci-setup | extract $ENV_TOKENS
@@ -65,10 +65,10 @@ jobs:
         run: |
           # wjdlz/NOTE: save token to temporary file
           echo '${{ secrets.GCP_SA_KEY }}' > token.json
-          
+
           # wjdlz/NOTE: extract & mask credentials
           ${{ env.CI_DIR }}/firebase/extract-credentials.sh token.json "$GITHUB_OUTPUT"
-          
+
           # wjdlz/NOTE: clean up
           rm token.json
 
@@ -120,12 +120,12 @@ jobs:
           envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
           # envkey_V_NODE_OPTIONS: --max_old_space_size=4096
           envkey_V_STORYBOOK_FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_AT }}
-        
+
       - name: setup | prebuild
         continue-on-error: true
         run: |
           pnpm v:prebuild:storybook
-            
+
       - name: setup | build
         # run: npm run build --name=${{ env.NX_APP_NAME }}
         run: pnpm build:storybook-nc

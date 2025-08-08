@@ -12,14 +12,14 @@ jobs:
     secrets: inherit
     with:
       CALLER: scheduler
-  
+
   storybook-sb:
     name: scheduler | storybook-sb
     uses: vezham/v0xFE-deployer/.github/workflows/storybook-sb.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
-      
+
   storybook:
     name: scheduler | storybook
     uses: vezham/v0xFE-deployer/.github/workflows/storybook.yml@timeline

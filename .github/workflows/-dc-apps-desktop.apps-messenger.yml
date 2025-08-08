@@ -46,7 +46,7 @@ jobs:
       APP_URL: '{"__type":"prod","local":"http://localhost:3000","preview":"http://localhost:8080","prod":"https://lab5-ic-web-vezham--policy-center-timeline-61b5bb1-vgfywiin.web.app"}'
       # APP_URL: {"__type":"prod","prod":"https://messenger.apps.cloud.vezham.com"}
       APP_MENU: '{"help_center":"help.vezham.com/apps/messenger"}'
-      
+
   dev:
     needs: tva
     if: ${{ needs.tva.outputs.dev == 'true' }}
@@ -94,7 +94,7 @@ jobs:
       APP_URL: '{"__type":"prod","local":"http://localhost:3000","preview":"http://localhost:8080","prod":"https://lab5-ic-web-vezham--policy-center-timeline-61b5bb1-vgfywiin.web.app"}'
       # APP_URL: {"__type":"prod","prod":"https://messenger.apps.cloud.vezham.com"}
       APP_MENU: '{"help_center":"help.vezham.com/apps/messenger"}'
-      
+
   prod:
     needs: tva
     if: ${{ needs.tva.outputs.prod == 'true' }}

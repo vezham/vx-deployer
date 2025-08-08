@@ -1,4 +1,4 @@
-name: changesets for release 
+name: changesets for release
 description: Sets up Changesets for NPM release
 
 inputs:
@@ -14,7 +14,7 @@ runs:
   steps:
     - name: ci-setup | LOG
       uses: vezham/v0xFE-deployer/.github/actions/common/log-setup@timeline
-    
+
     - name: checklist-pr | [NPM] create release PR
       if: github.event_name != 'pull_request'
       id: changesets
@@ -23,8 +23,8 @@ runs:
         # publish: pnpm changeset publish | ${{ steps.release-check.outputs.publish }} | echo "wjdlz/NOTE | INIT checklist-publish"
         # publish: pnpm publish -r
         # version: pnpm changeset version
-        commit: "ci(changesets): version packages"
-        title: "ci(changesets): :package: release packages"
+        commit: 'ci(changesets): version packages'
+        title: 'ci(changesets): :package: release packages'
         # setupGitUser: false
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}

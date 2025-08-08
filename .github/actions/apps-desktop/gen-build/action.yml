@@ -6,7 +6,7 @@ runs:
   steps:
     - name: setup | app-icon
       uses: vezham/v0xFE-deployer/.github/actions/apps-desktop/setup-icons@timeline
-    
+
     - name: cli | package
       shell: bash
       run: |
@@ -18,7 +18,7 @@ runs:
       run: |
         pnpm run make
       # pnpm run publish
-    
+
     # - name: cli | build & publish
     #   shell: bash
     #   run: |

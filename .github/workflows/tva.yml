@@ -40,7 +40,7 @@ jobs:
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
-      
+
       - name: action | node & pnpm
         uses: vezham/v0xFE-deployer/.github/actions/common/setup-install@timeline
 
@@ -54,7 +54,7 @@ jobs:
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
-          
+
       - name: action | node & pnpm
         uses: vezham/v0xFE-deployer/.github/actions/common/setup-install@timeline
 
@@ -64,7 +64,7 @@ jobs:
   # tests:
   #   name: Tests
   #   runs-on: ubuntu-latest
-  
+
   #   steps:
   #     - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
   #       uses: vezham/v0xFE-deployer/.github/actions/common/setup-checkout@timeline
