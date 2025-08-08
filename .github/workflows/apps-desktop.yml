@@ -9,16 +9,16 @@ on:
 
 jobs:
   suites-one:
-    uses: vezham/v0xFE-deployer/.github/workflows/-dc-apps-desktop.suites-one.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/-dc-apps-desktop.suites-one.yml@timeline
     with:
       CALLER: ${{ inputs.CALLER }}
 
   suites-hq:
-    uses: vezham/v0xFE-deployer/.github/workflows/-dc-apps-desktop.suites-hq.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/-dc-apps-desktop.suites-hq.yml@timeline
     with:
       CALLER: ${{ inputs.CALLER }}
 
   apps-messenger:
-    uses: vezham/v0xFE-deployer/.github/workflows/-dc-apps-desktop.apps-messenger.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/-dc-apps-desktop.apps-messenger.yml@timeline
     with:
       CALLER: ${{ inputs.CALLER }}

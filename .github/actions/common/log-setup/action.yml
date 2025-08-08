@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: ci-setup | SHA
-      uses: vezham/v0xFE-deployer/.github/actions/common/setup-sha@timeline
+      uses: vezham/vx-fe-deployer/.github/actions/common/setup-sha@timeline
 
     - name: logs | dir
       shell: bash

@@ -8,35 +8,35 @@ jobs:
   # v0xFE-apps-platforms
   academy:
     name: scheduler | academy
-    uses: vezham/v0xFE-deployer/.github/workflows/academy.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/academy.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   blogs:
     name: scheduler | blogs
-    uses: vezham/v0xFE-deployer/.github/workflows/blogs.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/blogs.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   help_center:
     name: scheduler | help_center
-    uses: vezham/v0xFE-deployer/.github/workflows/help_center.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/help_center.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   policy_center:
     name: scheduler | policy_center
-    uses: vezham/v0xFE-deployer/.github/workflows/policy_center.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/policy_center.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   whats_new:
     name: scheduler | whats_new
-    uses: vezham/v0xFE-deployer/.github/workflows/whats_new.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/whats_new.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler

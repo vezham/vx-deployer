@@ -11,7 +11,7 @@ jobs:
   tva:
     name: dc/TVA
     if: ${{ inputs.CALLER == 'timeline' }}
-    uses: vezham/v0xFE-deployer/.github/workflows/business-mock.helper.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/business-mock.helper.yml@timeline
     secrets:
       VERCEL_SA_KEY: ${{ secrets.BUSINESS_MOCK_TVA_VERCEL_SA_KEY }}
     with:

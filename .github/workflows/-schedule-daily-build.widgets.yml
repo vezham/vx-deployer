@@ -8,7 +8,7 @@ jobs:
   # v0xFE-apps-widgets
   chat_widget:
     name: scheduler | chat_widget
-    uses: vezham/v0xFE-deployer/.github/workflows/chat_widget.yml@timeline
+    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler

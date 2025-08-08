@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: setup | app-icon
-      uses: vezham/v0xFE-deployer/.github/actions/apps-desktop/setup-icons@timeline
+      uses: vezham/vx-fe-deployer/.github/actions/apps-desktop/setup-icons@timeline
 
     - name: cli | package
       shell: bash
