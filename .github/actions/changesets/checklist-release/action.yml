@@ -23,8 +23,7 @@ runs:
     - name: ci-setup | Check for releases
       id: check
       shell: bash
-      run: |
-        npm whoami
+      run: | # npm whoami
         bash ${{ github.action_path }}/bin/main.sh
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
