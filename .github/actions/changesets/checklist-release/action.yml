@@ -1,6 +1,14 @@
 name: Release Check
 description: Check for packages that need to be released using changesets
 
+inputs:
+  GITHUB_TOKEN:
+    required: true
+    type: string
+  NPM_TOKEN:
+    required: true
+    type: string
+
 runs:
   using: composite
   steps:
@@ -16,4 +24,8 @@ runs:
       id: check
       shell: bash
       run: |
+        npm whoami
         bash ${{ github.action_path }}/bin/main.sh
+      env:
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
