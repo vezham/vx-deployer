@@ -35,7 +35,7 @@ runs:
       shell: bash
       run: |
         git config --global user.email "vigneshwaran@vezham.com"
-        git config --global user.name "vigneshwaran-vtpl"
+        git config --global user.name "v0xvigneshwaran"
 
     - name: setup | pnpm install
       shell: bash

@@ -29,6 +29,7 @@ do_publish() {
     return 1
   fi
   
+  log_debug "npm: @$(echo $(npm whoami))"
   log_debug "Publishing $package_name@$new_version → $package_dir" $ns_npm
   # Attempt to publish the package
   if ! (cd "$package_dir" && pnpm publish --provenance --access public --no-git-checks); then # --dry-run
