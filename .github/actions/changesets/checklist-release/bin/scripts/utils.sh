@@ -8,7 +8,8 @@ check_dependencies() {
     fi
 
     # check NPM authentication...
-    log_info "check NPM auth... [vx-101]"
+    log_info "check NPM auth... [vx-102]"
+    echo $(npm whoami)
 
     if ! npm whoami &> /dev/null; then
         log_error "Not logged into npm. Please run 'npm login' first."
