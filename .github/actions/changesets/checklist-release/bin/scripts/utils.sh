@@ -8,7 +8,7 @@ check_dependencies() {
     fi
 
     # check NPM authentication...
-    log_info "check NPM auth... [vx-103]"
+    log_info "check NPM auth... [vx-103B]"
     echo $(npm whoami)
 
     if ! npm whoami &> /dev/null; then

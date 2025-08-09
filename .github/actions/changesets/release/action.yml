@@ -37,6 +37,10 @@ runs:
         github.event.pull_request.merged == true &&
         github.event.pull_request.title == 'ci(changesets): :package: release packages'
       uses: vezham/vx-fe-deployer/.github/actions/changesets/checklist-release@timeline
+      with:
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+        NPM_TOKEN: ${{ inputs.NPM_TOKEN }}
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+        NPM_TOKEN: ${{ inputs.NPM_TOKEN }}
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
