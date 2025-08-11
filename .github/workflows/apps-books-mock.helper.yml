@@ -1,0 +1,137 @@
+name: books-mock | helper
+
+on:
+  workflow_call:
+    secrets:
+      VERCEL_SA_KEY:
+        required: true
+    inputs:
+      GIT_REPO:
+        required: false
+        type: string
+      GIT_BRANCH:
+        required: false
+        type: string
+      IS_PREVIEW:
+        required: false
+        type: boolean
+        default: false
+      IS_DEBUG:
+        required: false
+        type: boolean
+        default: false
+      IS_BETA:
+        required: false
+        type: boolean
+        default: false
+      APP_NAME:
+        type: string
+      # wjdlz/NOTE: custom-fields
+
+      # MOCK_DATA_PATH:
+      #   type: string
+
+env:
+  REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
+  BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
+  CI_DIR: ../../../vx/bin/ci
+  ENTRY_POINT: ./apps/books/__mocks__/
+  # DX_APP_PATH: apps/books
+  DX_APP_NAME: books-mock
+  # NX_APP_NAME: books
+
+jobs:
+  build_and_deploy:
+    strategy:
+      matrix:
+        node-version: [22]
+        pnpm-version: [10.13.1]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ env.ENTRY_POINT }}
+    steps:
+      - name: checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO }}
+          ref: ${{ env.BRANCH }}
+
+      # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
+
+      - name: ci-setup | extract $ENV_TOKENS
+        id: extract-credentials
+        shell: bash
+        run: |
+          # wjdlz/NOTE: save token to temporary file
+          echo '${{ secrets.VERCEL_SA_KEY }}' > token.json
+
+          # wjdlz/NOTE: extract & mask credentials
+          ${{ env.CI_DIR }}/vercel/extract-credentials.sh token.json "$GITHUB_OUTPUT"
+
+          # wjdlz/NOTE: clean up
+          rm token.json
+
+      - name: ci-setup | gen $ENV_TOKENS
+        id: gen-env-tokens
+        env:
+          VERCEL_TOKEN: ${{ steps.extract-credentials.outputs.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ steps.extract-credentials.outputs.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.extract-credentials.outputs.VERCEL_PROJECT_ID }}
+        run: |
+          {
+            echo "VERCEL_TOKEN=$VERCEL_TOKEN"
+            echo "VERCEL_ORG_ID=$VERCEL_ORG_ID"
+            echo "VERCEL_PROJECT_ID=$VERCEL_PROJECT_ID"
+          } >> $GITHUB_ENV
+
+      - name: ci-setup | short-sha
+        uses: benjlevesque/short-sha@v3.0
+        id: short-sha
+
+      - name: ci-setup | $SHA
+        run: |
+          echo 'SHA=${{ steps.short-sha.outputs.sha }}' >> $GITHUB_ENV
+
+      - name: ci-setup | gen DX_APP_URL
+        id: gen-dx-app-url
+        run: |
+          echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
+
+      # wjdlz/NOTE: setup | pnpm
+
+      - name: setup | .env vars
+        uses: SpicyPizza/create-envfile@v1.3
+        with:
+          directory: ${{ env.ENTRY_POINT }}
+          # envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
+          # envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
+          # envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
+          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
+          # envkey_V_MOCK_DATA_PATH: ${{ inputs.MOCK_DATA_PATH }}
+
+      # wjdlz/NOTE: setup | build, logs
+
+      - name: cloud-setup | vercel
+        # shell: bash
+        run: bash ${{ env.CI_DIR }}/vercel/main.sh
+
+      - name: cloud-cli | vercel
+        uses: BetaHuhn/deploy-to-vercel-action@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
+          WORKING_DIRECTORY: ${{ env.ENTRY_POINT }}
+          # ALIAS_DOMAINS: |
+          #   ${{ env.DX_APP_URL }}
+
+      - name: deployer | create commit comment
+        uses: peter-evans/commit-comment@v1
+        with:
+          body: |
+            🚀 ${{ env.DX_APP_NAME }} Build deployed successfully to the following URLs
+            - [Preview](https://${{ env.DX_APP_URL }})
+            - [Live Demo](https://${{ env.DX_APP_URL }})

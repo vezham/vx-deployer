@@ -1,0 +1,64 @@
+name: books | deployer
+
+on:
+  workflow_call:
+    inputs:
+      CALLER:
+        required: true
+        type: string
+
+jobs:
+  tva:
+    name: dc/TVA
+    if: ${{ inputs.CALLER == 'timeline' || inputs.CALLER == 'feat/app-books' || inputs.CALLER == 'scheduler' }}
+    uses: vezham/vx-fe-deployer/.github/workflows/apps-books.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.APPS_BOOKS_TVA_GCP_SA_KEY }}
+    with:
+      GIT_BRANCH: ${{ inputs.CALLER }}
+      IS_DEBUG: true
+      IS_BETA: true
+      APP_NAME: books
+
+  dev:
+    name: dc/dev
+    if: ${{ inputs.CALLER == 'deploy/dev' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-fe-deployer/.github/workflows/apps-books.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.APPS_BOOKS_DEV_GCP_SA_KEY }}
+    with:
+      GIT_BRANCH: deploy/dev
+      IS_DEBUG: true
+      IS_BETA: true
+      APP_NAME: books
+
+  qa:
+    name: dc/qa
+    if: ${{ inputs.CALLER == 'deploy/qa' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-fe-deployer/.github/workflows/apps-books.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.APPS_BOOKS_QA_GCP_SA_KEY }}
+    with:
+      GIT_BRANCH: deploy/qa
+      IS_BETA: true
+      APP_NAME: books
+
+  preview:
+    name: dc/preview
+    if: ${{ inputs.CALLER == 'deploy/preview' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-fe-deployer/.github/workflows/apps-books.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.APPS_BOOKS_PREVIEW_GCP_SA_KEY }}
+    with:
+      GIT_BRANCH: deploy/preview
+      APP_NAME: books
+
+  live:
+    name: dc/live
+    if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-fe-deployer/.github/workflows/apps-books.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.APPS_BOOKS_LIVE_GCP_SA_KEY }}
+    with:
+      GIT_BRANCH: deploy/live
+      APP_NAME: books
