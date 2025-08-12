@@ -23,7 +23,7 @@ readonly GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 # ------ MODULE BASED CONFIG ------
 
 # Configuration variables
-BATCH_SIZE=3        # Number of packages to publish in each batch
+BATCH_SIZE=5        # Number of packages to publish in each batch
 BATCH_DELAY=360     #[360/6][300] # Delay between batches in seconds (5 minutes)
 PACKAGE_DELAY=180   #[180/3][5] Delay between individual packages in seconds 
 
