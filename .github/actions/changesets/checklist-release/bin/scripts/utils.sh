@@ -1,6 +1,8 @@
 #!/bin/bash
 
 check_dependencies() {
+    local ns_npm="NPM"
+
     # check if jq command exists
     if ! command -v jq &> /dev/null; then
         log_error "jq is required but not installed"
@@ -8,11 +10,10 @@ check_dependencies() {
     fi
 
     # check NPM authentication...
-    log_info "check NPM auth... [vx-103B]"
-    echo $(npm whoami)
+    log_info "check NPM auth...: @$(echo $(npm whoami))" $ns_npm
 
     if ! npm whoami &> /dev/null; then
-        log_error "Not logged into npm. Please run 'npm login' first."
+        log_error "Not logged into npm. Please run 'npm login' first." $ns_npm
         exit 1
     fi
 }
