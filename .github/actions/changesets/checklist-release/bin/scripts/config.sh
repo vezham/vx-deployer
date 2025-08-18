@@ -24,8 +24,8 @@ readonly GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
 # Configuration variables
 BATCH_SIZE=5        # Number of packages to publish in each batch
-BATCH_DELAY=360     #[360/6][300/5] # Delay between batches in seconds
-PACKAGE_DELAY=120   #[180/3][120/2][5] # Delay between individual packages in seconds 
+BATCH_DELAY=180     # [180/3][360/6][300/5] # Delay between batches in seconds
+PACKAGE_DELAY=120   # [120/2] # Delay between individual packages in seconds 
 
 # Status file
 readonly CHANGESET_STATUS_JSON="${V_HOME_DIR}/op-release.json"
