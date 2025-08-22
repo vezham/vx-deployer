@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration | GIT variables # wjdlz/TODO: set v0x-bot
+# Configuration | GIT variables # wjdlz/TODO: set vx-bot
 readonly GIT_BOT_EMAIL="github-actions[bot]@users.noreply.github.com"
 readonly GIT_BOT_NAME="github-actions[bot]"
 readonly GITHUB_TOKEN="${GITHUB_TOKEN:-}"
@@ -23,8 +23,8 @@ readonly GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 # ------ MODULE BASED CONFIG ------
 
 # Configuration variables
-BATCH_SIZE=5        # Number of packages to publish in each batch
-BATCH_DELAY=180     # [180/3][360/6][300/5] # Delay between batches in seconds
+BATCH_SIZE=5        # [5][10] # Number of packages to publish in each batch
+BATCH_DELAY=180     # [180/3][300/5][360/6] # Delay between batches in seconds
 PACKAGE_DELAY=120   # [120/2] # Delay between individual packages in seconds 
 
 # Status file
