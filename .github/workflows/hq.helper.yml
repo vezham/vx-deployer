@@ -51,8 +51,8 @@ env:
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
   CI_DIR: ../../v/bin/ci
   ENTRY_POINT: ./apps_suites/hq
-  DX_APP_PATH: apps_suites/hq
-  DX_APP_NAME: hq
+  VX_APP_PATH: apps_suites/hq
+  VX_APP_NAME: hq
   NX_APP_NAME: hq
 
 jobs:
@@ -107,9 +107,9 @@ jobs:
 
       - name: ci-setup | gen DX_APP_URL
         id: gen-dx-app-url
-        # echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
+        # echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
         run: |
-          echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}" >> $GITHUB_ENV
+          echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}" >> $GITHUB_ENV
 
       - name: setup | pnpm
         uses: pnpm/action-setup@v4
@@ -155,7 +155,7 @@ jobs:
 
       - name: cloud-setup | firebase
         # shell: bash
-        run: bash ${{ env.CI_DIR }}/firebase/main.sh ${{ env.DX_APP_PATH }}
+        run: bash ${{ env.CI_DIR }}/firebase/main.sh ${{ env.VX_APP_PATH }}
 
       - name: cloud-cli | gcp/preview
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -194,6 +194,6 @@ jobs:
         # - https://${{ env.DX_APP_URL }}
         with:
           body: |
-            🚀 ${{ env.DX_APP_NAME }} Build deployed successfully to the following URLs
+            🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
             - [Preview](${{ steps.gcp-preview-url.outputs.value }}) - ${{ steps.gcp-preview.outputs.expire_time }}
             - [Live Demo](https://${{ env.GCP_PROJECT_ID }}.web.app)

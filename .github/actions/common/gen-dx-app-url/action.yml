@@ -10,6 +10,6 @@ runs:
     - name: ci-setup | gen DX_APP_URL
       id: gen-dx-app-url
       shell: bash
-      # echo 'DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in' >> $GITHUB_ENV
+      # echo 'DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in' >> $GITHUB_ENV
       run: |
-        echo 'DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}' >> $GITHUB_ENV
+        echo 'DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}' >> $GITHUB_ENV

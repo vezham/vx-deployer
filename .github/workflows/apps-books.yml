@@ -16,9 +16,9 @@ jobs:
       GCP_SA_KEY: ${{ secrets.APPS_BOOKS_TVA_GCP_SA_KEY }}
     with:
       GIT_BRANCH: ${{ inputs.CALLER }}
+      APP_NAME: books
       IS_DEBUG: true
       IS_BETA: true
-      APP_NAME: books
 
   dev:
     name: dc/dev
@@ -28,9 +28,9 @@ jobs:
       GCP_SA_KEY: ${{ secrets.APPS_BOOKS_DEV_GCP_SA_KEY }}
     with:
       GIT_BRANCH: deploy/dev
+      APP_NAME: books
       IS_DEBUG: true
       IS_BETA: true
-      APP_NAME: books
 
   qa:
     name: dc/qa
@@ -40,8 +40,8 @@ jobs:
       GCP_SA_KEY: ${{ secrets.APPS_BOOKS_QA_GCP_SA_KEY }}
     with:
       GIT_BRANCH: deploy/qa
-      IS_BETA: true
       APP_NAME: books
+      IS_BETA: true
 
   preview:
     name: dc/preview

@@ -10,15 +10,15 @@ on:
 jobs:
   tva:
     name: dc/TVA
-    if: ${{ inputs.CALLER == 'timeline' || inputs.CALLER == 'scheduler' }}
+    if: ${{ inputs.CALLER == 'timeline' || inputs.CALLER == 'feat/nx-next' || inputs.CALLER == 'scheduler' }}
     uses: vezham/vx-fe-deployer/.github/workflows/playground.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.PLAYGROUND_TVA_GCP_SA_KEY }}
     with:
       GIT_BRANCH: ${{ inputs.CALLER }}
+      APP_NAME: playground
       IS_DEBUG: true
       IS_BETA: true
-      APP_NAME: playground
       BASE_API_URL: mock
       MOCK_API_URL: https://dev.playground.mock.vezham.com
       APP_API_URL: https://dev.api.vezham.com
@@ -31,9 +31,9 @@ jobs:
       GCP_SA_KEY: ${{ secrets.PLAYGROUND_DEV_GCP_SA_KEY }}
     with:
       GIT_BRANCH: deploy/dev
+      APP_NAME: playground
       IS_DEBUG: true
       IS_BETA: true
-      APP_NAME: playground
       BASE_API_URL: mock
       MOCK_API_URL: https://dev.playground.mock.vezham.com
       APP_API_URL: https://dev.api.vezham.com
@@ -46,8 +46,8 @@ jobs:
       GCP_SA_KEY: ${{ secrets.PLAYGROUND_QA_GCP_SA_KEY }}
     with:
       GIT_BRANCH: deploy/qa
-      IS_BETA: true
       APP_NAME: playground
+      IS_BETA: true
       BASE_API_URL: mock
       MOCK_API_URL: https://dev.playground.mock.vezham.com
       APP_API_URL: https://dev.api.vezham.com

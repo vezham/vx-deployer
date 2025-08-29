@@ -37,7 +37,7 @@ runs:
       shell: bash
       run: |
         {
-          echo 'DX_APP_NAME=${{ matrix.artifact_name }}'
+          echo 'VX_APP_NAME=${{ matrix.artifact_name }}'
           echo 'DX_APP_URL=${{ steps.artifact-upload.outputs.artifact-url }}'
         } >> $GITHUB_ENV
 

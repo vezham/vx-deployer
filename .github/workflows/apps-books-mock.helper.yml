@@ -12,10 +12,8 @@ on:
       GIT_BRANCH:
         required: false
         type: string
-      IS_PREVIEW:
-        required: false
-        type: boolean
-        default: false
+      APP_NAME:
+        type: string
       IS_DEBUG:
         required: false
         type: boolean
@@ -24,9 +22,11 @@ on:
         required: false
         type: boolean
         default: false
-      APP_NAME:
-        type: string
-      # wjdlz/NOTE: custom-fields
+      IS_PREVIEW:
+        required: false
+        type: boolean
+        default: false
+      # @vx/NOTE: custom-fields
 
       # MOCK_DATA_PATH:
       #   type: string
@@ -36,8 +36,8 @@ env:
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
   CI_DIR: ../../../vx/bin/ci
   ENTRY_POINT: ./apps/books/__mocks__/
-  # DX_APP_PATH: apps/books
-  DX_APP_NAME: books-mock
+  # VX_APP_PATH: apps/books
+  VX_APP_NAME: books-mock
   # NX_APP_NAME: books
 
 jobs:
@@ -64,13 +64,13 @@ jobs:
         id: extract-credentials
         shell: bash
         run: |
-          # wjdlz/NOTE: save token to temporary file
+          # @vx/NOTE: save token to temporary file
           echo '${{ secrets.VERCEL_SA_KEY }}' > token.json
 
-          # wjdlz/NOTE: extract & mask credentials
+          # @vx/NOTE: extract & mask credentials
           ${{ env.CI_DIR }}/vercel/extract-credentials.sh token.json "$GITHUB_OUTPUT"
 
-          # wjdlz/NOTE: clean up
+          # @vx/NOTE: clean up
           rm token.json
 
       - name: ci-setup | gen $ENV_TOKENS
@@ -97,21 +97,21 @@ jobs:
       - name: ci-setup | gen DX_APP_URL
         id: gen-dx-app-url
         run: |
-          echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
+          echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
 
-      # wjdlz/NOTE: setup | pnpm
+      # @vx/NOTE: setup | pnpm
 
       - name: setup | .env vars
         uses: SpicyPizza/create-envfile@v1.3
         with:
           directory: ${{ env.ENTRY_POINT }}
-          # envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
+          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
           # envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
           # envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
-          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
+          # envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
           # envkey_V_MOCK_DATA_PATH: ${{ inputs.MOCK_DATA_PATH }}
 
-      # wjdlz/NOTE: setup | build, logs
+      # @vx/NOTE: setup | build, logs
 
       - name: cloud-setup | vercel
         # shell: bash
@@ -132,6 +132,6 @@ jobs:
         uses: peter-evans/commit-comment@v1
         with:
           body: |
-            🚀 ${{ env.DX_APP_NAME }} Build deployed successfully to the following URLs
+            🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
             - [Preview](https://${{ env.DX_APP_URL }})
             - [Live Demo](https://${{ env.DX_APP_URL }})

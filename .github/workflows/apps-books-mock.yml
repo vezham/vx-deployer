@@ -16,6 +16,6 @@ jobs:
       VERCEL_SA_KEY: ${{ secrets.APPS_BOOKS_MOCK_TVA_VERCEL_SA_KEY }}
     with:
       GIT_BRANCH: ${{ inputs.CALLER }}
+      APP_NAME: books-mock
       IS_DEBUG: true
       IS_BETA: true
-      APP_NAME: books-mock

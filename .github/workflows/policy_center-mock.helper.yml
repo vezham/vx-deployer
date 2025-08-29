@@ -36,8 +36,8 @@ env:
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
   CI_DIR: ../../../v/bin/ci
   ENTRY_POINT: ./apps_platforms/policy_center/__mocks__/
-  # DX_APP_PATH: apps_platforms/policy_center
-  DX_APP_NAME: policy_center-mock
+  # VX_APP_PATH: apps_platforms/policy_center
+  VX_APP_NAME: policy_center-mock
   # NX_APP_NAME: policy_center
 
 jobs:
@@ -97,7 +97,7 @@ jobs:
       - name: ci-setup | gen DX_APP_URL
         id: gen-dx-app-url
         run: |
-          echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
+          echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
 
       # wjdlz/NOTE: setup | pnpm
 
@@ -132,6 +132,6 @@ jobs:
         uses: peter-evans/commit-comment@v1
         with:
           body: |
-            🚀 ${{ env.DX_APP_NAME }} Build deployed successfully to the following URLs
+            🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
             - [Preview](https://${{ env.DX_APP_URL }})
             - [Live Demo](https://${{ env.DX_APP_URL }})

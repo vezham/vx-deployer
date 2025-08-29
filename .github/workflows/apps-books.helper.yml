@@ -12,10 +12,8 @@ on:
       GIT_BRANCH:
         required: false
         type: string
-      IS_PREVIEW:
-        required: false
-        type: boolean
-        default: false
+      APP_NAME:
+        type: string
       IS_DEBUG:
         required: false
         type: boolean
@@ -24,17 +22,30 @@ on:
         required: false
         type: boolean
         default: false
-      APP_NAME:
+      IS_PREVIEW:
+        required: false
+        type: boolean
+        default: false
+      # @vx/NOTE: custom-fields
+
+      BASE_API_URL:
+        required: false
         type: string
-      # wjdlz/NOTE: custom-fields
+        default: api # api | mock | local
+      MOCK_API_URL:
+        required: false
+        type: string
+      APP_API_URL:
+        required: false
+        type: string
 
 env:
   REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
   CI_DIR: ../../vx/bin/ci
   ENTRY_POINT: ./apps/books
-  DX_APP_PATH: apps/books
-  DX_APP_NAME: books
+  VX_APP_PATH: apps/books
+  VX_APP_NAME: books
   NX_APP_NAME: books
 
 jobs:
@@ -61,13 +72,13 @@ jobs:
         id: extract-credentials
         shell: bash
         run: |
-          # wjdlz/NOTE: save token to temporary file
+          # @vx/NOTE: save token to temporary file
           echo '${{ secrets.GCP_SA_KEY }}' > token.json
 
-          # wjdlz/NOTE: extract & mask credentials
+          # @vx/NOTE: extract & mask credentials
           ${{ env.CI_DIR }}/firebase/extract-credentials.sh token.json "$GITHUB_OUTPUT"
 
-          # wjdlz/NOTE: clean up
+          # @vx/NOTE: clean up
           rm token.json
 
       - name: ci-setup | gen $ENV_TOKENS
@@ -89,9 +100,9 @@ jobs:
 
       - name: ci-setup | gen DX_APP_URL
         id: gen-dx-app-url
-        # echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
+        # echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
         run: |
-          echo "DX_APP_URL=${{ env.DX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}" >> $GITHUB_ENV
+          echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}" >> $GITHUB_ENV
 
       - name: setup | pnpm
         uses: pnpm/action-setup@v4
@@ -112,10 +123,13 @@ jobs:
         uses: SpicyPizza/create-envfile@v1.3
         with:
           directory: ${{ env.ENTRY_POINT }}
-          envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
+          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
           envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
           envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
-          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
+          envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
+          envkey_V_BASE_API_URL: ${{ inputs.BASE_API_URL }}
+          envkey_V_MOCK_API_URL: ${{ inputs.MOCK_API_URL }}
+          envkey_V_APP_API_URL: ${{ inputs.APP_API_URL }}
 
       - name: setup | build
         run: pnpm nx run ${{ env.NX_APP_NAME }}:build
@@ -129,7 +143,7 @@ jobs:
 
       - name: cloud-setup | firebase
         # shell: bash
-        run: bash ${{ env.CI_DIR }}/firebase/main.sh ${{ env.DX_APP_PATH }}
+        run: bash ${{ env.CI_DIR }}/firebase/main.sh ${{ env.VX_APP_PATH }}
 
       - name: cloud-cli | gcp/preview
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -161,13 +175,13 @@ jobs:
           firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
           # entryPoint: ${{ env.ENTRY_POINT }}
 
-      # wjdlz/NOTE: cloud-setup | vercel - alternative
+      # @vx/NOTE: cloud-setup | vercel - alternative
 
       - name: deployer | create commit comment
         uses: peter-evans/commit-comment@v1
         # - https://${{ env.DX_APP_URL }}
         with:
           body: |
-            🚀 ${{ env.DX_APP_NAME }} Build deployed successfully to the following URLs
+            🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
             - [Preview](${{ steps.gcp-preview-url.outputs.value }}) - ${{ steps.gcp-preview.outputs.expire_time }}
             - [Live Demo](https://${{ env.GCP_PROJECT_ID }}.web.app)

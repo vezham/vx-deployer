@@ -9,7 +9,7 @@ runs:
       # - ${{ env.DX_APP_URL }}
       with:
         body: |
-          🚀 ${{ env.DX_APP_NAME }} Build deployed successfully to the following URLs
+          🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
           - ${{ env.DX_APP_URL }}
 
         # - [Preview](${{ steps.gcp-preview-url.outputs.value }}) - ${{ steps.gcp-preview.outputs.expire_time }}

@@ -12,8 +12,8 @@ env:
   BRANCH: ${{ inputs.CALLER || 'timeline' }}
   CI_DIR: ./v/bin/ci
   # ENTRY_POINT: ./
-  # DX_APP_PATH:
-  # DX_APP_NAME:
+  # VX_APP_PATH:
+  # VX_APP_NAME:
   # NX_APP_NAME:
 
 jobs:
