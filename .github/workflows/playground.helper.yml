@@ -91,7 +91,3 @@ jobs:
         uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase@timeline
         with:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
-
-      - name: action | nx/AI fix
-        if: always()
-        uses: vezham/vx-fe-deployer/.github/actions/nx/ai-fix@timeline
