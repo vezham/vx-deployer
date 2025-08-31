@@ -43,23 +43,22 @@ env:
   # REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-apps-internals' }}
   REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
-  CI_DIR: ../../vx/bin/ci
   ENTRY_POINT: ./apps_internals/playground
   VX_APP_PATH: apps_internals/playground
   VX_APP_NAME: playground
-  NX_APP_NAME: playground
 
 jobs:
   build_and_deploy:
     strategy:
       matrix:
+        os: [ubuntu-latest]
         node-version: [22]
         pnpm-version: [10.13.1]
-        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: ${{ env.ENTRY_POINT }}
+
     steps:
       - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
         uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
@@ -69,9 +68,6 @@ jobs:
 
       - name: action | gen $DX_APP_URL
         uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
-
-      - name: action | node & pnpm
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
 
       - name: setup | .env vars
         uses: SpicyPizza/create-envfile@v1.3
@@ -85,6 +81,9 @@ jobs:
           envkey_V_MOCK_API_URL: ${{ inputs.MOCK_API_URL }}
           envkey_V_APP_API_URL: ${{ inputs.APP_API_URL }}
 
+      - name: action | node & pnpm
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
+
       - name: action | gen-build
         uses: vezham/vx-fe-deployer/.github/actions/nx/gen-build@timeline
 
@@ -92,3 +91,7 @@ jobs:
         uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase@timeline
         with:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+      - name: action | nx/AI fix
+        if: always()
+        uses: vezham/vx-fe-deployer/.github/actions/nx/ai-fix@timeline

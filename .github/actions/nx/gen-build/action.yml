@@ -7,7 +7,7 @@ runs:
     - name: setup | build
       shell: bash
       run: |
-        pnpm nx run ${{ env.NX_APP_NAME }}:build
+        pnpm nx run ${{ env.VX_APP_NAME }}:build
 
     - name: logs | archive npm failure logs
       if: failure()
