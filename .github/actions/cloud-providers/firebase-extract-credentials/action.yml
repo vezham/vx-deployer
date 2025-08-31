@@ -1,6 +1,11 @@
 name: Extract credentials
 description: Check for credentials that need to be used for deploy
 
+inputs:
+  GCP_SA_KEY:
+    required: true
+    type: string
+
 runs:
   using: composite
   steps:
@@ -10,7 +15,7 @@ runs:
       shell: bash
       run: |
         # @vx/NOTE: save token to temporary file
-        echo '${{ secrets.GCP_SA_KEY }}' > token.json
+        echo '${{ inputs.GCP_SA_KEY }}' > token.json
 
         # @vx/NOTE: extract & mask credentials
         bash ${{ github.action_path }}/bin/main.sh token.json "$GITHUB_OUTPUT"
@@ -22,6 +27,7 @@ runs:
       id: gen-env-tokens
       env:
         GCP_PROJECT_ID: ${{ steps.extract-credentials.outputs.GCP_PROJECT_ID }}
+      shell: bash
       run: |
         {
           echo "GCP_PROJECT_ID=$GCP_PROJECT_ID"

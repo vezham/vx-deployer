@@ -12,6 +12,8 @@ runs:
     # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
     - name: ci-setup | extract $ENV_TOKENS
       uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase-extract-credentials@timeline
+      with:
+        GCP_SA_KEY: ${{ inputs.GCP_SA_KEY }}
 
     - name: cloud-setup | firebase
       shell: bash
