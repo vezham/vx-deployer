@@ -48,7 +48,7 @@ env:
   VX_APP_NAME: playground
 
 jobs:
-  build_and_deploy:
+  bnd:
     strategy:
       matrix:
         os: [ubuntu-latest]

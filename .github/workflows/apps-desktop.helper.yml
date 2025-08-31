@@ -9,10 +9,8 @@ on:
       GIT_BRANCH:
         required: false
         type: string
-      IS_PREVIEW:
-        required: false
-        type: boolean
-        default: false
+      APP_NAME:
+        type: string
       IS_DEBUG:
         required: false
         type: boolean
@@ -21,8 +19,10 @@ on:
         required: false
         type: boolean
         default: false
-      APP_NAME:
-        type: string
+      IS_PREVIEW:
+        required: false
+        type: boolean
+        default: false
       # wjdlz/NOTE: custom-fields
 
       CONFIG_APP:
@@ -48,7 +48,6 @@ env:
   ENTRY_POINT: ./
   # VX_APP_PATH:
   # VX_APP_NAME:
-  # NX_APP_NAME:
 
 jobs:
   bnd:
@@ -83,14 +82,14 @@ jobs:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
 
-      - name: action | node & pnpm
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
-
       - name: action | gen $DX_APP_URL
         uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
 
       - name: action | gen $ENV_VARS
         uses: vezham/vx-fe-deployer/.github/actions/apps-desktop/setup-env@timeline
+
+      - name: action | node & pnpm
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
 
       - name: action | gen-build
         uses: vezham/vx-fe-deployer/.github/actions/apps-desktop/gen-build@timeline
