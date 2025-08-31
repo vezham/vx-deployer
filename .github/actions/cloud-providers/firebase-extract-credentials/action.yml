@@ -1,8 +1,6 @@
 name: Extract credentials
 description: Check for credentials that need to be used for deploy
 
-inputs:
-
 runs:
   using: composite
   steps:

@@ -1,8 +1,6 @@
 name: NX for Gen App Build
 description: Nx for Gen apps build to deploy
 
-inputs:
-
 runs:
   using: composite
   steps:

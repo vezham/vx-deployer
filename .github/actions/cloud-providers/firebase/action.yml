@@ -1,8 +1,6 @@
 name: firebase as cloud-providers
 description: Sets up Firebase as Cloud Provider
 
-inputs:
-
 runs:
   using: composite
   steps:
