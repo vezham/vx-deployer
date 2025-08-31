@@ -1,0 +1,38 @@
+name: Extract credentials
+description: Check for credentials that need to be used for deploy
+
+inputs:
+  VERCEL_SA_KEY:
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
+    - name: ci-setup | extract $ENV_TOKENS
+      id: extract-credentials
+      shell: bash
+      run: |
+        # @vx/NOTE: save token to temporary file
+        echo '${{ inputs.VERCEL_SA_KEY }}' > token.json
+
+        # @vx/NOTE: extract & mask credentials
+        bash ${{ github.action_path }}/bin/main.sh token.json "$GITHUB_OUTPUT"
+
+        # @vx/NOTE: clean up
+        rm token.json
+
+    - name: ci-setup | gen $ENV_TOKENS
+      id: gen-env-tokens
+      env:
+        VERCEL_TOKEN: ${{ steps.extract-credentials.outputs.VERCEL_TOKEN }}
+        VERCEL_ORG_ID: ${{ steps.extract-credentials.outputs.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ steps.extract-credentials.outputs.VERCEL_PROJECT_ID }}
+      shell: bash
+      run: |
+        {
+          echo "VERCEL_TOKEN=$VERCEL_TOKEN"
+          echo "VERCEL_ORG_ID=$VERCEL_ORG_ID"
+          echo "VERCEL_PROJECT_ID=$VERCEL_PROJECT_ID"
+        } >> $GITHUB_ENV

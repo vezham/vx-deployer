@@ -28,79 +28,37 @@ on:
         default: false
       # @vx/NOTE: custom-fields
 
-      # MOCK_DATA_PATH:
-      #   type: string
-
 env:
   # REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-apps-internals' }}
   REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
-  CI_DIR: ../../../vx/bin/ci
   ENTRY_POINT: ./apps_internals/playground/__mocks__/
   # VX_APP_PATH: apps_internals/playground
   VX_APP_NAME: playground-mock
-  # NX_APP_NAME: playground
 
 jobs:
   build_and_deploy:
     strategy:
       matrix:
+        os: [ubuntu-latest]
         node-version: [22]
         pnpm-version: [10.13.1]
-        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: ${{ env.ENTRY_POINT }}
+
     steps:
-      - name: checkout | ${{ env.REPO }}@${{ env.BRANCH }}
-        uses: actions/checkout@v4
+      - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
         with:
-          repository: ${{ env.REPO }}
-          ref: ${{ env.BRANCH }}
+          GIT_REPO: ${{ env.REPO }}
+          GIT_BRANCH: ${{ env.BRANCH }}
 
-      # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
-
-      - name: ci-setup | extract $ENV_TOKENS
-        id: extract-credentials
-        shell: bash
-        run: |
-          # @vx/NOTE: save token to temporary file
-          echo '${{ secrets.VERCEL_SA_KEY }}' > token.json
-
-          # @vx/NOTE: extract & mask credentials
-          ${{ env.CI_DIR }}/vercel/extract-credentials.sh token.json "$GITHUB_OUTPUT"
-
-          # @vx/NOTE: clean up
-          rm token.json
-
-      - name: ci-setup | gen $ENV_TOKENS
-        id: gen-env-tokens
-        env:
-          VERCEL_TOKEN: ${{ steps.extract-credentials.outputs.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ steps.extract-credentials.outputs.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ steps.extract-credentials.outputs.VERCEL_PROJECT_ID }}
-        run: |
-          {
-            echo "VERCEL_TOKEN=$VERCEL_TOKEN"
-            echo "VERCEL_ORG_ID=$VERCEL_ORG_ID"
-            echo "VERCEL_PROJECT_ID=$VERCEL_PROJECT_ID"
-          } >> $GITHUB_ENV
-
-      - name: ci-setup | short-sha
-        uses: benjlevesque/short-sha@v3.0
-        id: short-sha
-
-      - name: ci-setup | $SHA
-        run: |
-          echo 'SHA=${{ steps.short-sha.outputs.sha }}' >> $GITHUB_ENV
-
-      - name: ci-setup | gen DX_APP_URL
-        id: gen-dx-app-url
-        run: |
-          echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
-
-      # @vx/NOTE: setup | pnpm
+      - name: action | gen $DX_APP_URL
+        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
+        with:
+          IS_DX_TVA: true
 
       - name: setup | .env vars
         uses: SpicyPizza/create-envfile@v1.3
@@ -110,29 +68,12 @@ jobs:
           # envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
           # envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
           # envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
-          # envkey_V_MOCK_DATA_PATH: ${{ inputs.MOCK_DATA_PATH }}
 
-      # @vx/NOTE: setup | build, logs
+      # @vx/NOTE: action | node & pnpm
 
-      - name: cloud-setup | vercel
-        # shell: bash
-        run: bash ${{ env.CI_DIR }}/vercel/main.sh
+      # @vx/NOTE: action | gen-build
 
-      - name: cloud-cli | vercel
-        uses: BetaHuhn/deploy-to-vercel-action@v1
+      - name: action | ci-setup | vercel
+        uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/vercel@timeline
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
-          WORKING_DIRECTORY: ${{ env.ENTRY_POINT }}
-          # ALIAS_DOMAINS: |
-          #   ${{ env.DX_APP_URL }}
-
-      - name: deployer | create commit comment
-        uses: peter-evans/commit-comment@v1
-        with:
-          body: |
-            🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
-            - [Preview](https://${{ env.DX_APP_URL }})
-            - [Live Demo](https://${{ env.DX_APP_URL }})
+          VERCEL_SA_KEY: ${{ secrets.VERCEL_SA_KEY }}

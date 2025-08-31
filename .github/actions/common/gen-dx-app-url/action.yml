@@ -1,6 +1,12 @@
 name: Gen DX App URL
 description: Gen $DX_APP_URL
 
+inputs:
+  IS_DX_TVA:
+    required: false
+    type: boolean
+    default: false
+
 runs:
   using: composite
   steps:
@@ -10,6 +16,9 @@ runs:
     - name: ci-setup | gen DX_APP_URL
       id: gen-dx-app-url
       shell: bash
-      # echo 'DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in' >> $GITHUB_ENV
       run: |
-        echo 'DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}' >> $GITHUB_ENV
+        if [[ "${{ inputs.IS_DX_TVA }}" == "true" ]]; then
+          echo 'DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in' >> $GITHUB_ENV
+        else
+          echo 'DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}' >> $GITHUB_ENV
+        fi

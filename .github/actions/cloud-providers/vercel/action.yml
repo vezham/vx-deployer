@@ -1,0 +1,41 @@
+name: vercel as cloud-providers
+description: Sets up Vercel as Cloud Provider
+
+inputs:
+  VERCEL_SA_KEY:
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
+    - name: ci-setup | extract $ENV_TOKENS
+      uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/vercel-extract-credentials@timeline
+      with:
+        VERCEL_SA_KEY: ${{ inputs.VERCEL_SA_KEY }}
+
+    - name: cloud-setup | vercel
+      shell: bash
+      run: |
+        bash ${{ github.action_path }}/bin/main.sh
+
+    # wjdlz/TODO: add preview setup
+    - name: cloud-cli | vercel
+      uses: BetaHuhn/deploy-to-vercel-action@v1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+        VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
+        WORKING_DIRECTORY: ${{ env.ENTRY_POINT }}
+        # ALIAS_DOMAINS: |
+        #   ${{ env.DX_APP_URL }}
+
+    - name: deployer | create commit comment
+      uses: peter-evans/commit-comment@v1
+      with:
+        body: |
+          🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
+          - [Preview](https://${{ env.DX_APP_URL }})
+          - [Live Demo](https://${{ env.DX_APP_URL }})
