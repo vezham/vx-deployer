@@ -1,6 +1,11 @@
 name: firebase as cloud-providers
 description: Sets up Firebase as Cloud Provider
 
+inputs:
+  GCP_SA_KEY:
+    required: true
+    type: string
+
 runs:
   using: composite
   steps:
@@ -20,7 +25,7 @@ runs:
         channelId: ${{ env.DX_APP_URL }}
         repoToken: ${{ env.GITHUB_TOKEN }}
         projectId: ${{ env.GCP_PROJECT_ID }}
-        firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
+        firebaseServiceAccount: ${{ inputs.GCP_SA_KEY }}
         # entryPoint: ${{ env.ENTRY_POINT }}
 
     - name: setup | fetch preview url
@@ -39,7 +44,7 @@ runs:
         channelId: live
         # repoToken: ${{ env.GITHUB_TOKEN }}
         projectId: ${{ env.GCP_PROJECT_ID }}
-        firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
+        firebaseServiceAccount: ${{ inputs.GCP_SA_KEY }}
         # entryPoint: ${{ env.ENTRY_POINT }}
 
     - name: deployer | create commit comment

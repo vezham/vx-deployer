@@ -90,3 +90,5 @@ jobs:
 
       - name: action | ci-setup | firebase
         uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase@timeline
+        with:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
