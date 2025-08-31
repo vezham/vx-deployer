@@ -12,10 +12,7 @@ pwd
 ls
 
 # read config
-config=`cat $dir/vx/config/firebase/$name.json`
-
-# switch for hosting from ROOT
-cd $dir
+config=`cat vx/config/firebase/$name.json`
 
 pwd
 ls
