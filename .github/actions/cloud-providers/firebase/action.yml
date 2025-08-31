@@ -1,0 +1,54 @@
+name: firebase as cloud-providers
+description: Sets up Firebase as Cloud Provider
+
+inputs:
+
+runs:
+  using: composite
+  steps:
+    # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
+    - name: ci-setup | extract $ENV_TOKENS
+      uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase-extract-credentials@timeline
+
+    - name: cloud-setup | firebase
+      shell: bash
+      run: bash ${{ env.CI_DIR }}/firebase/main.sh ${{ env.VX_APP_PATH }}
+
+    - name: cloud-cli | gcp/preview
+      uses: FirebaseExtended/action-hosting-deploy@v0
+      id: gcp-preview
+      with:
+        expires: 30d
+        channelId: ${{ env.DX_APP_URL }}
+        repoToken: ${{ env.GITHUB_TOKEN }}
+        projectId: ${{ env.GCP_PROJECT_ID }}
+        firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
+        # entryPoint: ${{ env.ENTRY_POINT }}
+
+    - name: setup | fetch preview url
+      uses: mad9000/actions-find-and-replace-string@5
+      id: gcp-preview-url
+      with:
+        source: ${{ steps.gcp-preview.outputs.details_url }}
+        find: '***'
+        replace: ${{ env.GCP_PROJECT_ID }}
+
+    - name: cloud-cli | gcp/live
+      uses: FirebaseExtended/action-hosting-deploy@v0
+      id: gcp
+      with:
+        # expires: 30d
+        channelId: live
+        # repoToken: ${{ env.GITHUB_TOKEN }}
+        projectId: ${{ env.GCP_PROJECT_ID }}
+        firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
+        # entryPoint: ${{ env.ENTRY_POINT }}
+
+    - name: deployer | create commit comment
+      uses: peter-evans/commit-comment@v1
+      # - https://${{ env.DX_APP_URL }}
+      with:
+        body: |
+          🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
+          - [Preview](${{ steps.gcp-preview-url.outputs.value }}) - ${{ steps.gcp-preview.outputs.expire_time }}
+          - [Live Demo](https://${{ env.GCP_PROJECT_ID }}.web.app)

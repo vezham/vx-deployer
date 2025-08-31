@@ -61,64 +61,17 @@ jobs:
       run:
         working-directory: ${{ env.ENTRY_POINT }}
     steps:
-      - name: checkout | ${{ env.REPO }}@${{ env.BRANCH }}
-        uses: actions/checkout@v4
+      - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
         with:
-          repository: ${{ env.REPO }}
-          ref: ${{ env.BRANCH }}
+          GIT_REPO: ${{ env.REPO }}
+          GIT_BRANCH: ${{ env.BRANCH }}
 
-      # wjdlz/TODO: ci-setup | fetch-credentials - via vezham CI host
+      - name: action | gen $DX_APP_URL
+        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
 
-      - name: ci-setup | extract $ENV_TOKENS
-        id: extract-credentials
-        shell: bash
-        run: |
-          # @vx/NOTE: save token to temporary file
-          echo '${{ secrets.GCP_SA_KEY }}' > token.json
-
-          # @vx/NOTE: extract & mask credentials
-          ${{ env.CI_DIR }}/firebase/extract-credentials.sh token.json "$GITHUB_OUTPUT"
-
-          # @vx/NOTE: clean up
-          rm token.json
-
-      - name: ci-setup | gen $ENV_TOKENS
-        id: gen-env-tokens
-        env:
-          GCP_PROJECT_ID: ${{ steps.extract-credentials.outputs.GCP_PROJECT_ID }}
-        run: |
-          {
-            echo "GCP_PROJECT_ID=$GCP_PROJECT_ID"
-          } >> $GITHUB_ENV
-
-      - name: ci-setup | short-sha
-        uses: benjlevesque/short-sha@v3.0
-        id: short-sha
-
-      - name: ci-setup | $SHA
-        run: |
-          echo 'SHA=${{ steps.short-sha.outputs.sha }}' >> $GITHUB_ENV
-
-      - name: ci-setup | gen DX_APP_URL
-        id: gen-dx-app-url
-        # echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}-${{ github.actor }}.ui.dx.tva.v0x.in" >> $GITHUB_ENV
-        run: |
-          echo "DX_APP_URL=${{ env.VX_APP_NAME }}-${{ env.BRANCH }}-${{ env.SHA }}" >> $GITHUB_ENV
-
-      - name: setup | pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ matrix.pnpm-version }}
-
-      - name: setup | node env
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-
-      - name: setup | pnpm install
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: action | node & pnpm
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
 
       - name: setup | .env vars
         uses: SpicyPizza/create-envfile@v1.3
@@ -132,57 +85,8 @@ jobs:
           envkey_V_MOCK_API_URL: ${{ inputs.MOCK_API_URL }}
           envkey_V_APP_API_URL: ${{ inputs.APP_API_URL }}
 
-      - name: setup | build
-        run: pnpm nx run ${{ env.NX_APP_NAME }}:build
+      - name: action | gen-build
+        uses: vezham/vx-fe-deployer/.github/actions/nx/gen-build@timeline
 
-      - name: logs | archive npm failure logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-logs
-          path: ~/.npm/_logs
-
-      - name: cloud-setup | firebase
-        # shell: bash
-        run: bash ${{ env.CI_DIR }}/firebase/main.sh ${{ env.VX_APP_PATH }}
-
-      - name: cloud-cli | gcp/preview
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        id: gcp-preview
-        with:
-          expires: 30d
-          channelId: ${{ env.DX_APP_URL }}
-          repoToken: ${{ env.GITHUB_TOKEN }}
-          projectId: ${{ env.GCP_PROJECT_ID }}
-          firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
-          # entryPoint: ${{ env.ENTRY_POINT }}
-
-      - name: setup | fetch preview url
-        uses: mad9000/actions-find-and-replace-string@5
-        id: gcp-preview-url
-        with:
-          source: ${{ steps.gcp-preview.outputs.details_url }}
-          find: '***'
-          replace: ${{ env.GCP_PROJECT_ID }}
-
-      - name: cloud-cli | gcp/live
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        id: gcp
-        with:
-          # expires: 30d
-          channelId: live
-          # repoToken: ${{ env.GITHUB_TOKEN }}
-          projectId: ${{ env.GCP_PROJECT_ID }}
-          firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
-          # entryPoint: ${{ env.ENTRY_POINT }}
-
-      # @vx/NOTE: cloud-setup | vercel - alternative
-
-      - name: deployer | create commit comment
-        uses: peter-evans/commit-comment@v1
-        # - https://${{ env.DX_APP_URL }}
-        with:
-          body: |
-            🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
-            - [Preview](${{ steps.gcp-preview-url.outputs.value }}) - ${{ steps.gcp-preview.outputs.expire_time }}
-            - [Live Demo](https://${{ env.GCP_PROJECT_ID }}.web.app)
+      - name: action | ci-setup | firebase
+        uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase@timeline

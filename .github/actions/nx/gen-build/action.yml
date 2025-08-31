@@ -1,0 +1,19 @@
+name: NX for Gen App Build
+description: Nx for Gen apps build to deploy
+
+inputs:
+
+runs:
+  using: composite
+  steps:
+    - name: setup | build
+      shell: bash
+      run: |
+        pnpm nx run ${{ env.NX_APP_NAME }}:build
+
+    - name: logs | archive npm failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: npm-logs
+        path: ~/.npm/_logs
