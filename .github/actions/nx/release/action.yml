@@ -16,6 +16,10 @@ inputs:
     required: false
     type: string
     default: ''
+  args:
+    required: false
+    type: string
+    default: ''
 
 runs:
   using: composite
@@ -26,8 +30,7 @@ runs:
     - name: checklist-release | [NPM] publish
       shell: bash
       run: |
-        pnpm nx run @vx:@vx-ws/release --version=${{ inputs.version }}
-      # pnpm v:ws:release --version=${{ inputs.version }}
+        pnpm nx run @vx:@vx-ws/release --version=${{ inputs.version }} ${{ inputs.args }}
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
