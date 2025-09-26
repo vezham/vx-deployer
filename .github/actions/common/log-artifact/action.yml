@@ -9,6 +9,7 @@ runs:
       shell: bash
       run: |
         mkdir -p .vezham
+        mkdir -p dist/.playwright
         cp -R dist/.playwright/ .vezham/playwright/
         echo "logs -> playwright-report"
 
@@ -16,7 +17,7 @@ runs:
       shell: bash
       run: |
         mkdir -p .vezham
-        cp -R .vezham/ v0xCI/
+        cp -R .vezham/ vx-ci/
         echo "logs -> artifact"
         pwd
         ls
@@ -24,6 +25,6 @@ runs:
     - name: ci-setup | Upload Logs
       uses: actions/upload-artifact@v4
       with:
-        name: v0xCI-artifact
-        path: v0xCI/
+        name: vx-ci-artifact
+        path: vx-ci/
         retention-days: 30
