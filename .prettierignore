@@ -86,6 +86,8 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 test-output
 
+.tanstack
+
 # node | env
 # Optional npm cache directory
 .npm
@@ -99,7 +101,7 @@ dist
 build
 coverage
 tmp
-/out-tsc
+out-tsc
 tsconfig.tsbuildinfo
 
 **/.git
@@ -114,5 +116,4 @@ logs
 *-lock.json
 *-lock.yaml
 *.lock
-**/__mocks__/*-lock.yaml
 **/routeTree.gen.ts

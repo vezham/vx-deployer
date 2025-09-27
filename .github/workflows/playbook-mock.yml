@@ -1,0 +1,21 @@
+name: playbook-mock | deployer
+
+on:
+  workflow_call:
+    inputs:
+      CALLER:
+        required: true
+        type: string
+
+jobs:
+  tva:
+    name: dc/TVA
+    if: ${{ inputs.CALLER == 'timeline' }}
+    uses: vezham/vx-fe-deployer/.github/workflows/playbook-mock.helper.yml@timeline
+    secrets:
+      VERCEL_SA_KEY: ${{ secrets.PLAYBOOK_MOCK_TVA_VERCEL_SA_KEY }}
+    with:
+      GIT_BRANCH: ${{ inputs.CALLER }}
+      APP_NAME: playbook-mock
+      IS_DEBUG: true
+      IS_BETA: true

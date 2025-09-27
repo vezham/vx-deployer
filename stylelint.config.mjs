@@ -12,7 +12,7 @@ export default {
       '/^padding|^gap/': ['rem'],
       '/^animation/': ['ms']
     },
-    'unit-allowed-list': ['rem', 'hsl', 'hsla', 'deg', '%', 'ms'],
+    'unit-allowed-list': ['rem', 'oklch', 'deg', '%', 'ms'],
     'color-no-hex': true,
     'color-no-invalid-hex': true,
     'at-rule-no-unknown': [

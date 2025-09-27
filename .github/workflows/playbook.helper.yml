@@ -1,0 +1,93 @@
+name: playbook | helper
+
+on:
+  workflow_call:
+    secrets:
+      GCP_SA_KEY:
+        required: true
+    inputs:
+      GIT_REPO:
+        required: false
+        type: string
+      GIT_BRANCH:
+        required: false
+        type: string
+      APP_NAME:
+        type: string
+      IS_DEBUG:
+        required: false
+        type: boolean
+        default: false
+      IS_BETA:
+        required: false
+        type: boolean
+        default: false
+      IS_PREVIEW:
+        required: false
+        type: boolean
+        default: false
+      # @vx/NOTE: custom-fields
+
+      BASE_API_URL:
+        required: false
+        type: string
+        default: api # api | mock | local
+      MOCK_API_URL:
+        required: false
+        type: string
+      APP_API_URL:
+        required: false
+        type: string
+
+env:
+  # REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-apps-internals' }}
+  REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
+  BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
+  ENTRY_POINT: ./apps_internals/playbook
+  VX_APP_PATH: apps_internals/playbook
+  VX_APP_NAME: playbook
+
+jobs:
+  bnd:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [22]
+        pnpm-version: [10.13.1]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ env.ENTRY_POINT }}
+
+    steps:
+      - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
+        with:
+          GIT_REPO: ${{ env.REPO }}
+          GIT_BRANCH: ${{ env.BRANCH }}
+
+      - name: action | gen $DX_APP_URL
+        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
+
+      - name: setup | .env vars
+        uses: SpicyPizza/create-envfile@v1.3
+        with:
+          directory: ${{ env.ENTRY_POINT }}
+          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
+          envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
+          envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
+          envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
+          envkey_V_BASE_API_URL: ${{ inputs.BASE_API_URL }}
+          envkey_V_MOCK_API_URL: ${{ inputs.MOCK_API_URL }}
+          envkey_V_APP_API_URL: ${{ inputs.APP_API_URL }}
+
+      - name: action | node & pnpm
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
+
+      - name: action | gen-build
+        uses: vezham/vx-fe-deployer/.github/actions/nx/gen-build@timeline
+
+      - name: action | ci-setup | firebase
+        uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase@timeline
+        with:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}

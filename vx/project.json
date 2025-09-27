@@ -1,0 +1,159 @@
+{
+  "name": "@vx",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "@vx-ws/clean": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "nx run @vx:clean-ca",
+          "pnpm install --no-frozen-lockfile"
+        ],
+        "parallel": false
+      }
+    },
+    "@vx-ws/format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "sort-package-json \"package.json\" \"**/**/package.json\" \"packages/**/**/package.json\" --quiet",
+          "prettier . --write --log-level silent --cache --cache-strategy metadata",
+          "eslint --cache --cache-strategy metadata",
+          "stylelint \"**/*.{css,module.css}\" --allow-empty-input --cache --cache-strategy metadata"
+        ],
+        "parallel": false
+      }
+    },
+    "@vx-ws/fix": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "eslint --cache --cache-strategy metadata --fix",
+          "stylelint \"**/*.{css,module.css}\" --allow-empty-input --cache --cache-strategy metadata --fix"
+        ],
+        "// commands": ["sort-package-json", "prettier"],
+        "parallel": false
+      }
+    },
+    "nx:graph": {
+      "command": "nx graph"
+    },
+    "nx:migrate": {
+      "command": "pnpm install --no-frozen-lockfile && nx migrate --run-migrations --ifExists"
+    },
+    "nx:migrate-check": {
+      "command": "nx migrate latest"
+    },
+    "tw:migrate": {
+      "command": "npx @tailwindcss/upgrade"
+    },
+    "clean-ca": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "rm -rf ./packages/**/**/dist",
+          "rm -rf ./**/**/dist",
+          "rm -rf ./dist",
+          "rm -rf ./packages/**/**/out-tsc",
+          "rm -rf ./**/**/out-tsc",
+          "rm -rf ./packages/**/**/test-output",
+          "rm -rf ./**/**/test-output",
+          "rm -rf ./packages/**/**/node_modules",
+          "rm -rf ./**/**/node_modules",
+          "rm -rf ./node_modules"
+        ],
+        "// commands": ["nx reset --only-cache"],
+        "parallel": false
+      }
+    },
+    "clean-hard": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["nx run @vx:clean-ca", "rm ./pnpm-lock.yaml"],
+        "parallel": false
+      }
+    },
+    "clean:nx": {
+      "command": "nx reset --only-cache"
+    },
+    "clean:nx-reset": {
+      "command": "nx reset"
+    },
+    "clean:nx-hard": {
+      "command": "rm -rf ./.nx"
+    },
+    "test-hard": {
+      "command": "vitest"
+    },
+    "test:clean": {
+      "command": "vitest --clearScreen",
+      "//TODO": "&& pnpm clean"
+    },
+    "test:changedsince": {
+      "command": "vitest --changed --coverage"
+    },
+    "test:coverage": {
+      "command": "vitest --coverage"
+    },
+    "test:unit": {
+      "command": "vitest --reporter=json --outputFile=dist/.unit-test-results.json"
+    },
+    "test:unit-nc": {
+      "command": "vitest --reporter=json --outputFile=dist/.unit-test-results.json --no-cache"
+    },
+    "@vx-ws/install": {
+      "command": "pnpm install --no-frozen-lockfile"
+    },
+    "@vx-ws/format-hard": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "sort-package-json \"package.json\" \"**/**/package.json\" \"packages/**/**/package.json\"",
+          "prettier . --write",
+          "eslint",
+          "stylelint \"**/*.{css,module.css}\" --allow-empty-input"
+        ],
+        "parallel": false
+      }
+    },
+    "@vx-ci/format-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "prettier . --check --cache",
+          "sort-package-json \"package.json\" \"**/**/package.json\"  \"packages/**/**/package.json\""
+        ],
+        "parallel": false
+      }
+    },
+    "@vx-ci/build": {
+      "command": "nx run-many -t build"
+    },
+    "@vx-ci/nx:release": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["nx run @vx:@vx-ci/build", "nx release -d"],
+        "parallel": false
+      }
+    },
+    "@vx-ws/release": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          { "command": "nx run @vx:@vx-ci/build", "forwardAllArgs": false },
+          "tsx vx/tools/release.ts"
+        ],
+        "// commands": ["tsx vx/tools/release.ts -d --fr"],
+        "parallel": false
+      }
+    },
+    "local-registry": {
+      "executor": "@nx/js:verdaccio",
+      "options": {
+        "port": 4873,
+        "config": ".verdaccio/config.yml",
+        "storage": "tmp/local-registry/storage"
+      }
+    }
+  }
+}

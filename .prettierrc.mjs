@@ -8,8 +8,8 @@ const config = {
   bracketSameLine: true,
   arrowParens: 'avoid',
   plugins: [
+    // 'prettier-plugin-organize-imports',
     '@trivago/prettier-plugin-sort-imports',
-    'prettier-plugin-organize-imports',
     'prettier-plugin-tailwindcss'
   ],
   importOrder: [
@@ -17,6 +17,7 @@ const config = {
     '^@vezham/(.*)$',
     '^@vx-oss/(.*)$',
     '^@vx-pro/(.*)$',
+    '^@vx/(.*)$',
     '^@/(.*)$',
     '^[./]'
   ],
