@@ -1,0 +1,79 @@
+name: home-mock | helper
+
+on:
+  workflow_call:
+    secrets:
+      VERCEL_SA_KEY:
+        required: true
+    inputs:
+      GIT_REPO:
+        required: false
+        type: string
+      GIT_BRANCH:
+        required: false
+        type: string
+      APP_NAME:
+        type: string
+      IS_DEBUG:
+        required: false
+        type: boolean
+        default: false
+      IS_BETA:
+        required: false
+        type: boolean
+        default: false
+      IS_PREVIEW:
+        required: false
+        type: boolean
+        default: false
+      # @vx/NOTE: custom-fields
+
+env:
+  # REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-apps-internals' }}
+  REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
+  BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
+  ENTRY_POINT: ./apps_vezham/home-mock/
+  # VX_APP_PATH: apps_vezham/home-mock
+  VX_APP_NAME: home-mock
+
+jobs:
+  bnd:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [22]
+        pnpm-version: [10.13.1]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ${{ env.ENTRY_POINT }}
+
+    steps:
+      - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
+        with:
+          GIT_REPO: ${{ env.REPO }}
+          GIT_BRANCH: ${{ env.BRANCH }}
+
+      - name: action | gen $DX_APP_URL
+        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
+        with:
+          IS_DX_TVA: true
+
+      - name: setup | .env vars
+        uses: SpicyPizza/create-envfile@v1.3
+        with:
+          directory: ${{ env.ENTRY_POINT }}
+          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
+          envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
+          envkey_V_IS_BETA: ${{ inputs.IS_BETA }}
+          # envkey_V_IS_PREVIEW: ${{ inputs.IS_PREVIEW }}
+
+      # @vx/NOTE: action | node & pnpm
+
+      # @vx/NOTE: action | gen-build
+
+      - name: action | ci-setup | vercel
+        uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/vercel@timeline
+        with:
+          VERCEL_SA_KEY: ${{ secrets.VERCEL_SA_KEY }}
