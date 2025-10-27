@@ -35,7 +35,7 @@ runs:
       if: |
         github.event_name == 'pull_request' &&
         github.event.pull_request.merged == true &&
-        (github.event.pull_request.title == 'ci(changesets): :package: release packages' || ci(changesets): 📦 release packages (alpha) )
+        contains(github.event.pull_request.title, 'ci(changesets): :package: release packages')
       uses: vezham/vx-fe-deployer/.github/actions/changesets/checklist-release@timeline
       with:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
