@@ -8,6 +8,16 @@ inputs:
   token:
     description: 'GitHub token for commenting'
     required: true
+  build_result:
+    required: false
+  types_result:
+    required: false
+  lint_result:
+    required: false
+  prettier_result:
+    required: false
+  tests_result:
+    required: false
 
 runs:
   using: 'composite'
@@ -19,32 +29,49 @@ runs:
           case "$1" in
             success) echo "✅";;
             failure) echo "❌";;
+            skipped) echo "⏭️";;
             cancelled) echo "⚠️";;
             *) echo "❔";;
           esac
         }
 
+        function display_status {
+          local value="$1"
+          if [ -z "$value" ]; then echo "skipped"; else echo "$value"; fi
+        }
+
+        # Determine overall QA result
+        ALL_STATUS="${{ inputs.build_result }} ${{ inputs.types_result }} ${{ inputs.lint_result }} ${{ inputs.prettier_result }} ${{ inputs.tests_result }}"
+        if echo "$ALL_STATUS" | grep -q "failure"; then
+          OVERALL_STATUS="❌ Some checks failed"
+        elif echo "$ALL_STATUS" | grep -q "cancelled"; then
+          OVERALL_STATUS="⚠️ Cancelled"
+        else
+          OVERALL_STATUS="✅ All checks passed"
+        fi
+
         {
-          echo "🧾 **QA Results**"
+          echo "🧾 **QA Results** — ${OVERALL_STATUS}"
           echo ""
           echo "| Job | Status |"
           echo "|------|--------|"
-          echo "| 🏗️ Build | $(result_icon '${{ needs.build.result }}') (${{ needs.build.result }}) |"
-          echo "| 🧠 Types | $(result_icon '${{ needs.types.result }}') (${{ needs.types.result }}) |"
-          echo "| 🧹 Lint | $(result_icon '${{ needs.lint.result }}') (${{ needs.lint.result }}) |"
-          echo "| 🎨 Prettier | $(result_icon '${{ needs.prettier.result }}') (${{ needs.prettier.result }}) |"
-          echo "| 🧪 Tests | $(result_icon '${{ needs.tests.result }}') (${{ needs.tests.result }}) |"
+          echo "| 🏗️ Build | $(result_icon '$(display_status "${{ inputs.build_result }}")') ($(display_status "${{ inputs.build_result }}")) |"
+          echo "| 🧠 Types | $(result_icon '$(display_status "${{ inputs.types_result }}")') ($(display_status "${{ inputs.types_result }}")) |"
+          echo "| 🧹 Lint | $(result_icon '$(display_status "${{ inputs.lint_result }}")') ($(display_status "${{ inputs.lint_result }}")) |"
+          echo "| 🎨 Prettier | $(result_icon '$(display_status "${{ inputs.prettier_result }}")') ($(display_status "${{ inputs.prettier_result }}")) |"
+          echo "| 🧪 Tests | $(result_icon '$(display_status "${{ inputs.tests_result }}")') ($(display_status "${{ inputs.tests_result }}")) |"
           echo ""
           echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           if [ -n "${{ github.event.pull_request.number }}" ]; then
             echo "🔗 **PR:** #${{ github.event.pull_request.number }} by @${{ inputs.actor }}"
           fi
-          echo ""
+          echo "---"
+          echo "🕒 Generated on $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "Triggered by **@${{ inputs.actor }}**"
         } > summary.md
 
         echo ""
-        echo "===== 🧾 QA SUMMARY ====="
+        echo "===== 🧾 QA SUMMARY (${OVERALL_STATUS}) ====="
         cat summary.md
         echo "===================================="
 
