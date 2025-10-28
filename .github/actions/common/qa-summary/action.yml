@@ -1,0 +1,63 @@
+name: 'QA Summary'
+description: 'Generate and post a QA summary for CI jobs'
+
+inputs:
+  actor:
+    description: 'Triggering GitHub actor'
+    required: true
+  token:
+    description: 'GitHub token for commenting'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🧾 Generate QA Summary
+      shell: bash
+      run: |
+        function result_icon {
+          case "$1" in
+            success) echo "✅";;
+            failure) echo "❌";;
+            cancelled) echo "⚠️";;
+            *) echo "❔";;
+          esac
+        }
+
+        {
+          echo "🧾 **QA Results**"
+          echo ""
+          echo "| Job | Status |"
+          echo "|------|--------|"
+          echo "| 🏗️ Build | $(result_icon '${{ needs.build.result }}') (${{ needs.build.result }}) |"
+          echo "| 🧠 Types | $(result_icon '${{ needs.types.result }}') (${{ needs.types.result }}) |"
+          echo "| 🧹 Lint | $(result_icon '${{ needs.lint.result }}') (${{ needs.lint.result }}) |"
+          echo "| 🎨 Prettier | $(result_icon '${{ needs.prettier.result }}') (${{ needs.prettier.result }}) |"
+          echo "| 🧪 Tests | $(result_icon '${{ needs.tests.result }}') (${{ needs.tests.result }}) |"
+          echo ""
+          echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            echo "🔗 **PR:** #${{ github.event.pull_request.number }} by @${{ inputs.actor }}"
+          fi
+          echo ""
+          echo "Triggered by **@${{ inputs.actor }}**"
+        } > summary.md
+
+        echo ""
+        echo "===== 🧾 QA SUMMARY ====="
+        cat summary.md
+        echo "===================================="
+
+    - name: 💬 Comment on Commit
+      if: always()
+      uses: peter-evans/commit-comment@v3
+      with:
+        token: ${{ inputs.token }}
+        body-path: summary.md
+
+    - name: 💬 Post Summary to PR (if available)
+      if: github.event.pull_request.number != ''
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: QA Summary
+        path: summary.md
