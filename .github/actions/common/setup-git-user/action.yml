@@ -1,0 +1,11 @@
+name: Setup Git User
+description: Sets up Git User
+
+runs:
+  using: composite
+  steps:
+    - name: setup | Git User (Deployer)
+      shell: bash
+      run: |
+        git config --global user.email "vigneshwaran@vezham.com"
+        git config --global user.name "v0xvigneshwaran"
