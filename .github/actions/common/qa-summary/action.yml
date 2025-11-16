@@ -135,7 +135,5 @@ runs:
         conclusion: ${{ steps.gen.outputs.overall }}
         output: |
           {
-            "// summary": "QA status: ${{ steps.gen.outputs.overall_label }}",
-            "// 1": "QA report generated — see PR comment / commit comment for full details.",
-            "summary": ${{ steps.gen.outputs.summary_path }}
+            "summary": "QA report generated — see PR comment / commit comment for full details."
           }
