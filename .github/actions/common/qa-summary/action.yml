@@ -63,19 +63,19 @@ runs:
         if echo "$ALL_STATUS" | grep -q "failure"; then
           OVERALL="failure"
           OVERALL_STATUS="❌ Some checks failed"
-          OVERALL_BADGE="### 🔴 CI Status: Some checks failed"
+          OVERALL_BADGE="🔴 CI Status: Some checks failed"
         elif echo "$ALL_STATUS" | grep -q "cancelled"; then
           OVERALL="cancelled"
           OVERALL_STATUS="⚠️ Cancelled"
-          OVERALL_BADGE="### ⚠️ CI Status: Cancelled"
+          OVERALL_BADGE="⚠️ CI Status: Cancelled"
         else
           OVERALL="success"
           OVERALL_STATUS="✅ All checks passed"
-          OVERALL_BADGE="### 🟢 CI Status: All checks passed"
+          OVERALL_BADGE="🟢 CI Status: All checks passed"
         fi
 
         {
-          echo "${OVERALL_BADGE}"
+          echo "### ${OVERALL_BADGE}"
           echo ""
           echo "🧾 **QA Results** — ${OVERALL_STATUS}"
           echo ""
@@ -131,7 +131,8 @@ runs:
       shell: bash
       run: |
         ESCAPED=$(sed 's/\\/\\\\/g; s/\"/\\"/g' summary.md)
-        echo "escaped=$ESCAPED" >> "$GITHUB_OUTPUT"
+        printf "escaped=%s\n" "$ESCAPED" >> "$GITHUB_OUTPUT"
+      # echo "escaped=$ESCAPED" >> "$GITHUB_OUTPUT"
 
     - name: 🟩 Create Check Run
       if: always()
