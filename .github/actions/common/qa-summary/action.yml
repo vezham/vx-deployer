@@ -126,13 +126,6 @@ runs:
         header: QA Summary
         path: ${{ steps.gen.outputs.summary_path }}
 
-    # - name: 🔧 Escape summary for JSON
-    #   id: esc
-    #   shell: bash
-    #   run: |
-    #     ESCAPED=$(sed 's/\\/\\\\/g; s/\"/\\"/g' summary.md)
-    #     printf "escaped=%s\n" "$ESCAPED" >> "$GITHUB_OUTPUT"
-
     - name: 🟩 Create Check Run
       if: always()
       uses: LouisBrunner/checks-action@v2
@@ -142,6 +135,7 @@ runs:
         conclusion: ${{ steps.gen.outputs.overall }}
         output: |
           {
-            "summary": "QA status: ${{ steps.gen.outputs.overall_label }}",
-            "text": "Full QA report posted as PR comment / commit comment."
+            "// summary": "QA status: ${{ steps.gen.outputs.overall_label }}",
+            "// 1": "QA report generated — see PR comment / commit comment for full details.",
+            "summary": ${{ steps.gen.outputs.summary_path }}
           }
