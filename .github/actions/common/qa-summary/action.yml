@@ -19,13 +19,19 @@ inputs:
   tests_result:
     required: false
 
+  e2e_result:
+    required: false # optional for repos without e2e
+
 runs:
   using: 'composite'
   steps:
     - name: 🧾 Generate QA Summary
+      id: gen
       shell: bash
       run: |
-        function result_icon {
+        SUMMARY_MD="summary.md"
+
+        result_icon() {
           case "$1" in
             success) echo "✅";;
             failure) echo "❌";;
@@ -35,31 +41,57 @@ runs:
           esac
         }
 
-        function display_status {
+        display_status() {
           local value="$1"
           if [ -z "$value" ]; then echo "skipped"; else echo "$value"; fi
         }
 
+        BUILD=$(display_status "${{ inputs.build_result }}")
+        TYPES=$(display_status "${{ inputs.types_result }}")
+        LINT=$(display_status "${{ inputs.lint_result }}")
+        PRETTIER=$(display_status "${{ inputs.prettier_result }}")
+        TESTS=$(display_status "${{ inputs.tests_result }}")
+        E2E_RAW="${{ inputs.e2e_result }}"
+        E2E=$(display_status "$E2E_RAW")
+
         # Determine overall QA result
-        ALL_STATUS="${{ inputs.build_result }} ${{ inputs.types_result }} ${{ inputs.lint_result }} ${{ inputs.prettier_result }} ${{ inputs.tests_result }}"
+        ALL_STATUS="$BUILD $TYPES $LINT $PRETTIER $TESTS"
+        if [ -n "$E2E_RAW" ]; then
+          ALL_STATUS="$ALL_STATUS $E2E"
+        fi
+
         if echo "$ALL_STATUS" | grep -q "failure"; then
+          OVERALL="failure"
           OVERALL_STATUS="❌ Some checks failed"
+          OVERALL_BADGE="### 🔴 CI Status: Some checks failed"
         elif echo "$ALL_STATUS" | grep -q "cancelled"; then
+          OVERALL="cancelled"
           OVERALL_STATUS="⚠️ Cancelled"
+          OVERALL_BADGE="### ⚠️ CI Status: Cancelled"
         else
+          OVERALL="success"
           OVERALL_STATUS="✅ All checks passed"
+          OVERALL_BADGE="### 🟢 CI Status: All checks passed"
         fi
 
         {
+          echo "${OVERALL_BADGE}"
+          echo ""
           echo "🧾 **QA Results** — ${OVERALL_STATUS}"
           echo ""
           echo "| Job | Status |"
           echo "|------|--------|"
-          echo "| 🏗️ Build | $(result_icon $(display_status "${{ inputs.build_result }}")) ($(display_status "${{ inputs.build_result }}")) |"
-          echo "| 🧠 Types | $(result_icon $(display_status "${{ inputs.types_result }}")) ($(display_status "${{ inputs.types_result }}")) |"
-          echo "| 🧹 Lint | $(result_icon $(display_status "${{ inputs.lint_result }}")) ($(display_status "${{ inputs.lint_result }}")) |"
-          echo "| 🎨 Prettier | $(result_icon $(display_status "${{ inputs.prettier_result }}")) ($(display_status "${{ inputs.prettier_result }}")) |"
-          echo "| 🧪 Tests | $(result_icon $(display_status "${{ inputs.tests_result }}")) ($(display_status "${{ inputs.tests_result }}")) |"
+          echo "| 🏗️ Build | $(result_icon "$BUILD") ($BUILD) |"
+          echo "| 🧠 Types | $(result_icon "$TYPES") ($TYPES) |"
+          echo "| 🧹 Lint | $(result_icon "$LINT") ($LINT) |"
+          echo "| 🎨 Prettier | $(result_icon "$PRETTIER") ($PRETTIER) |"
+          echo "| 🧪 Tests | $(result_icon "$TESTS") ($TESTS) |"
+          
+          # only include E2E row if repo supports it
+          if [ -n "$E2E_RAW" ]; then
+            echo "| 🎭 E2E | $(result_icon "$E2E") ($E2E) |"
+          fi
+          
           echo ""
           echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           if [ -n "${{ github.event.pull_request.number }}" ]; then
@@ -68,23 +100,48 @@ runs:
           echo "---"
           echo "🕒 Generated on $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "Triggered by **@${{ inputs.actor }}**"
-        } > summary.md
+        } > "$SUMMARY_MD"
 
         echo ""
         echo "===== 🧾 QA SUMMARY (${OVERALL_STATUS}) ====="
-        cat summary.md
+        cat "$SUMMARY_MD"
         echo "===================================="
+
+        # export outputs for later steps
+        echo "summary_path=$SUMMARY_MD" >> "$GITHUB_OUTPUT"
+        echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
+        echo "overall_label=$OVERALL_STATUS" >> "$GITHUB_OUTPUT"
 
     - name: 💬 Comment on Commit
       if: always()
       uses: peter-evans/commit-comment@v3
       with:
         token: ${{ inputs.token }}
-        body-path: summary.md
+        body-path: ${{ steps.gen.outputs.summary_path }}
 
     - name: 💬 Post Summary to PR (if available)
       if: github.event.pull_request.number != ''
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         header: QA Summary
-        path: summary.md
+        path: ${{ steps.gen.outputs.summary_path }}
+
+    - name: 🔧 Escape summary for JSON
+      id: esc
+      shell: bash
+      run: |
+        ESCAPED=$(sed 's/\\/\\\\/g; s/\"/\\"/g' summary.md)
+        echo "escaped=$ESCAPED" >> "$GITHUB_OUTPUT"
+
+    - name: 🟩 Create Check Run
+      if: always()
+      uses: LouisBrunner/checks-action@v1
+      with:
+        token: ${{ inputs.token }}
+        name: 'QA Summary'
+        conclusion: ${{ steps.gen.outputs.overall }}
+        output: |
+          {
+            "summary": "🧾 QA Summary (${{ steps.gen.outputs.overall_label }})",
+            "text": "${{ steps.esc.outputs.escaped }}"
+          }
