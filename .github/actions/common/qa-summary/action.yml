@@ -126,15 +126,12 @@ runs:
         header: QA Summary
         path: ${{ steps.gen.outputs.summary_path }}
 
-    - name: 🔧 Escape summary for JSON
-      id: esc
-      shell: bash
-      run: |
-        ENCODED=$(base64 -w 0 summary.md)
-        echo "encoded=$ENCODED" >> "$GITHUB_OUTPUT"
-      # ESCAPED=$(sed 's/\\/\\\\/g; s/\"/\\"/g' summary.md)
-      # printf "escaped=%s\n" "$ESCAPED" >> "$GITHUB_OUTPUT"
-      # echo "escaped=$ESCAPED" >> "$GITHUB_OUTPUT"
+    # - name: 🔧 Escape summary for JSON
+    #   id: esc
+    #   shell: bash
+    #   run: |
+    #     ESCAPED=$(sed 's/\\/\\\\/g; s/\"/\\"/g' summary.md)
+    #     printf "escaped=%s\n" "$ESCAPED" >> "$GITHUB_OUTPUT"
 
     - name: 🟩 Create Check Run
       if: always()
@@ -146,5 +143,5 @@ runs:
         output: |
           {
             "summary": "🧾 QA Summary (${{ steps.gen.outputs.overall_label }})",
-            "text": "${{ fromBase64(steps.esc.outputs.encoded) }}"
+            "text": "${{ steps.gen.outputs.overall_label }}"
           }
