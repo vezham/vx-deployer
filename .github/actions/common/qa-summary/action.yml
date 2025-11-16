@@ -135,13 +135,13 @@ runs:
 
     - name: 🟩 Create Check Run
       if: always()
-      uses: LouisBrunner/checks-action@v1
+      uses: LouisBrunner/checks-action@v2
       with:
         token: ${{ inputs.token }}
-        name: 'QA Summary'
+        name: '🧾 QA Summary (${{ steps.gen.outputs.overall_label }})'
         conclusion: ${{ steps.gen.outputs.overall }}
         output: |
           {
-            "summary": "🧾 QA Summary (${{ steps.gen.outputs.overall_label }})",
-            "text": "${{ steps.gen.outputs.overall_label }}"
+            "summary": "QA status: ${{ steps.gen.outputs.overall_label }}",
+            "text": "Full QA report posted as PR comment / commit comment."
           }
