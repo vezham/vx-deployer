@@ -9,8 +9,14 @@
 </p>
 <hr>
 
-# @vx/fe-deployer
+# @vx/deployer
 
 ### Getting Started
 
 See [guidelines](https://storybook.vezham.com/?path=/docs/guidelines-get-started--overview) to get started.
+
+---
+
+### License
+
+Refer to the [LICENSE](./LICENSE) file for license information.

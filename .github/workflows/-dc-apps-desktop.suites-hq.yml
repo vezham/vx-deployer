@@ -34,7 +34,7 @@ jobs:
     needs: tva
     if: ${{ needs.tva.outputs.timeline == 'true' }}
     name: dc/timeline
-    uses: vezham/vx-fe-deployer/.github/workflows/apps-desktop.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/apps-desktop.helper.yml@timeline
     with:
       GIT_BRANCH: timeline
       IS_DEBUG: true
@@ -51,7 +51,7 @@ jobs:
     needs: tva
     if: ${{ needs.tva.outputs.dev == 'true' }}
     name: dc/dev
-    uses: vezham/vx-fe-deployer/.github/workflows/apps-desktop.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/apps-desktop.helper.yml@timeline
     with:
       GIT_BRANCH: deploy/dev
       IS_DEBUG: true
@@ -68,7 +68,7 @@ jobs:
     needs: tva
     if: ${{ needs.tva.outputs.qa == 'true' }}
     name: dc/qa
-    uses: vezham/vx-fe-deployer/.github/workflows/apps-desktop.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/apps-desktop.helper.yml@timeline
     with:
       GIT_BRANCH: deploy/qa
       IS_BETA: true
@@ -84,7 +84,7 @@ jobs:
     needs: tva
     if: ${{ needs.tva.outputs.preview == 'true' }}
     name: dc/preview
-    uses: vezham/vx-fe-deployer/.github/workflows/apps-desktop.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/apps-desktop.helper.yml@timeline
     with:
       GIT_BRANCH: deploy/preview
       APP_NAME: vezham-hq
@@ -99,7 +99,7 @@ jobs:
     needs: tva
     if: ${{ needs.tva.outputs.prod == 'true' }}
     name: dc/prod
-    uses: vezham/vx-fe-deployer/.github/workflows/apps-desktop.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/apps-desktop.helper.yml@timeline
     with:
       GIT_BRANCH: deploy/prod
       APP_NAME: vezham-hq

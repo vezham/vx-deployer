@@ -8,21 +8,21 @@ jobs:
   # v0xFE-apps-internals
   playground:
     name: scheduler | playground
-    uses: vezham/vx-fe-deployer/.github/workflows/playground.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/playground.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   storybook-sb:
     name: scheduler | storybook-sb
-    uses: vezham/vx-fe-deployer/.github/workflows/storybook-sb.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/storybook-sb.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   storybook:
     name: scheduler | storybook
-    uses: vezham/vx-fe-deployer/.github/workflows/storybook.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/storybook.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler

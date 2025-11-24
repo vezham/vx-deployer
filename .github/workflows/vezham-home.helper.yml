@@ -61,13 +61,13 @@ jobs:
 
     steps:
       - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
+        uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
 
       - name: action | gen $DX_APP_URL
-        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
+        uses: vezham/vx-deployer/.github/actions/common/gen-dx-app-url@timeline
 
       - name: setup | .env vars
         uses: SpicyPizza/create-envfile@v1.3
@@ -82,12 +82,12 @@ jobs:
           envkey_V_APP_API_URL: ${{ inputs.APP_API_URL }}
 
       - name: action | node & pnpm
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
+        uses: vezham/vx-deployer/.github/actions/common/setup-install@timeline
 
       - name: action | gen-build
-        uses: vezham/vx-fe-deployer/.github/actions/nx/gen-build@timeline
+        uses: vezham/vx-deployer/.github/actions/nx/gen-build@timeline
 
       - name: action | ci-setup | firebase
-        uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/firebase@timeline
+        uses: vezham/vx-deployer/.github/actions/cloud-providers/firebase@timeline
         with:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}

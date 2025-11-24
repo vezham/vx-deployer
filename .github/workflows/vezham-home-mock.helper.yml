@@ -50,13 +50,13 @@ jobs:
 
     steps:
       - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
+        uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
 
       - name: action | gen $DX_APP_URL
-        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
+        uses: vezham/vx-deployer/.github/actions/common/gen-dx-app-url@timeline
         with:
           IS_DX_TVA: true
 
@@ -74,6 +74,6 @@ jobs:
       # @vx/NOTE: action | gen-build
 
       - name: action | ci-setup | vercel
-        uses: vezham/vx-fe-deployer/.github/actions/cloud-providers/vercel@timeline
+        uses: vezham/vx-deployer/.github/actions/cloud-providers/vercel@timeline
         with:
           VERCEL_SA_KEY: ${{ secrets.VERCEL_SA_KEY }}

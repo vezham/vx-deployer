@@ -8,7 +8,7 @@ jobs:
   # v0xFE-apps-cdns
   static_cdn:
     name: scheduler | static_cdn
-    uses: vezham/vx-fe-deployer/.github/workflows/static_cdn.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/static_cdn.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler

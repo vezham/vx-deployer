@@ -8,14 +8,14 @@ jobs:
   # v0xFE-apps-suites
   hq:
     name: scheduler | hq
-    uses: vezham/vx-fe-deployer/.github/workflows/hq.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/hq.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler
 
   one:
     name: scheduler | one
-    uses: vezham/vx-fe-deployer/.github/workflows/one.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/one.yml@timeline
     secrets: inherit
     with:
       CALLER: scheduler

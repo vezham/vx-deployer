@@ -13,7 +13,7 @@ runs:
   using: composite
   steps:
     - name: ci-setup | LOG
-      uses: vezham/vx-fe-deployer/.github/actions/common/log-setup@timeline
+      uses: vezham/vx-deployer/.github/actions/common/log-setup@timeline
 
     - name: checklist-pr | [NPM] create release PR
       if: github.event_name != 'pull_request'
@@ -36,7 +36,7 @@ runs:
         github.event_name == 'pull_request' &&
         github.event.pull_request.merged == true &&
         contains(github.event.pull_request.title, 'ci(changesets): :package: release packages')
-      uses: vezham/vx-fe-deployer/.github/actions/changesets/checklist-release@timeline
+      uses: vezham/vx-deployer/.github/actions/changesets/checklist-release@timeline
       with:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         NPM_TOKEN: ${{ inputs.NPM_TOKEN }}

@@ -77,22 +77,22 @@ jobs:
 
     steps:
       - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-checkout@timeline
+        uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
 
       - name: action | gen $DX_APP_URL
-        uses: vezham/vx-fe-deployer/.github/actions/common/gen-dx-app-url@timeline
+        uses: vezham/vx-deployer/.github/actions/common/gen-dx-app-url@timeline
 
       - name: action | gen $ENV_VARS
-        uses: vezham/vx-fe-deployer/.github/actions/apps-desktop/setup-env@timeline
+        uses: vezham/vx-deployer/.github/actions/apps-desktop/setup-env@timeline
 
       - name: action | node & pnpm
-        uses: vezham/vx-fe-deployer/.github/actions/common/setup-install@timeline
+        uses: vezham/vx-deployer/.github/actions/common/setup-install@timeline
 
       - name: action | gen-build
-        uses: vezham/vx-fe-deployer/.github/actions/apps-desktop/gen-build@timeline
+        uses: vezham/vx-deployer/.github/actions/apps-desktop/gen-build@timeline
 
       - name: action | gen-artifact
-        uses: vezham/vx-fe-deployer/.github/actions/apps-desktop/gen-artifact@timeline
+        uses: vezham/vx-deployer/.github/actions/apps-desktop/gen-artifact@timeline

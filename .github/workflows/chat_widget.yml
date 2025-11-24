@@ -11,7 +11,7 @@ jobs:
   tva:
     name: dc/TVA
     if: ${{ inputs.CALLER == 'timeline' || inputs.CALLER == 'scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_TVA_GCP_SA_KEY }}
     with:
@@ -25,7 +25,7 @@ jobs:
   dev:
     name: dc/dev
     if: ${{ inputs.CALLER == 'deploy/dev' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_DEV_GCP_SA_KEY }}
     with:
@@ -39,7 +39,7 @@ jobs:
   qa:
     name: dc/qa
     if: ${{ inputs.CALLER == 'deploy/qa' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_QA_GCP_SA_KEY }}
     with:
@@ -52,7 +52,7 @@ jobs:
   preview:
     name: dc/preview
     if: ${{ inputs.CALLER == 'deploy/preview' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_PREVIEW_GCP_SA_KEY }}
     with:
@@ -64,7 +64,7 @@ jobs:
   # live:
   #   name: dc/live
   #   if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
-  #   uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+  #   uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
   #   secrets:
   #     GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_LIVE_GCP_SA_KEY }}
   #   with:
@@ -74,7 +74,7 @@ jobs:
   live-us:
     name: dc/live-us
     if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_LIVE_GCP_SA_KEY }}
     with:
@@ -86,7 +86,7 @@ jobs:
   live-eu:
     name: dc/live-eu
     if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_LIVE_GCP_SA_KEY }}
     with:
@@ -98,7 +98,7 @@ jobs:
   live-in:
     name: dc/live-in
     if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_LIVE_GCP_SA_KEY }}
     with:
@@ -110,7 +110,7 @@ jobs:
   live-au:
     name: dc/live-au
     if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/chat_widget.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/chat_widget.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.CHAT_WIDGET_LIVE_GCP_SA_KEY }}
     with:

@@ -18,4 +18,4 @@ runs:
 
     - name: action | LOG
       if: always()
-      uses: vezham/vx-fe-deployer/.github/actions/common/log-artifact@timeline
+      uses: vezham/vx-deployer/.github/actions/common/log-artifact@timeline

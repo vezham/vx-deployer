@@ -11,7 +11,7 @@ jobs:
   tva:
     name: dc/TVA
     if: ${{ inputs.CALLER == 'timeline' || inputs.CALLER == 'scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/whats_new.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/whats_new.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.WHATS_NEW_TVA_GCP_SA_KEY }}
     with:
@@ -23,7 +23,7 @@ jobs:
   dev:
     name: dc/dev
     if: ${{ inputs.CALLER == 'deploy/dev' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/whats_new.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/whats_new.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.WHATS_NEW_DEV_GCP_SA_KEY }}
     with:
@@ -35,7 +35,7 @@ jobs:
   qa:
     name: dc/qa
     if: ${{ inputs.CALLER == 'deploy/qa' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/whats_new.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/whats_new.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.WHATS_NEW_QA_GCP_SA_KEY }}
     with:
@@ -46,7 +46,7 @@ jobs:
   preview:
     name: dc/preview
     if: ${{ inputs.CALLER == 'deploy/preview' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/whats_new.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/whats_new.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.WHATS_NEW_PREVIEW_GCP_SA_KEY }}
     with:
@@ -56,7 +56,7 @@ jobs:
   live:
     name: dc/live
     if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
-    uses: vezham/vx-fe-deployer/.github/workflows/whats_new.helper.yml@timeline
+    uses: vezham/vx-deployer/.github/workflows/whats_new.helper.yml@timeline
     secrets:
       GCP_SA_KEY: ${{ secrets.WHATS_NEW_LIVE_GCP_SA_KEY }}
     with:
