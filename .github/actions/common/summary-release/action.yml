@@ -11,6 +11,9 @@ inputs:
   version:
     description: 'Released version'
     required: false
+  args:
+    description: 'Released args'
+    required: false
   release_result:
     required: true
 
@@ -46,6 +49,8 @@ runs:
         VERSION="${{ inputs.version }}"
         [ -z "$VERSION" ] && VERSION="(auto / detected)"
 
+        ARGS="${{ inputs.args }}"
+
         if echo "$ALL_STATUS" | grep -q "failure"; then
           OVERALL="failure"
           OVERALL_STATUS="❌ Release Failed"
@@ -69,6 +74,11 @@ runs:
           echo "|------|--------|"
           echo "| 🚀 Release | $(result_icon "$RELEASE") ($RELEASE) |"
           echo "| 🔢 Version | ${VERSION} |"
+
+          # only include args row if provided
+          if [ -n "$ARGS" ]; then
+            echo "| ⚙️ Args | ${ARGS} |"
+          fi
           
           echo ""
           echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
