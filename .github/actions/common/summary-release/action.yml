@@ -109,7 +109,7 @@ runs:
       uses: LouisBrunner/checks-action@v2
       with:
         token: ${{ inputs.token }}
-        name: '🧾 Release Summary - ${{ inputs.version || "auto" }}'
+        name: '🧾 Release Summary (${{ steps.gen.outputs.overall_label }})'
         conclusion: ${{ steps.gen.outputs.overall }}
         output: |
           {
