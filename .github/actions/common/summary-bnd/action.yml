@@ -1,0 +1,117 @@
+name: 'BnD Summary'
+description: 'Generate and post a release summary for publishing jobs'
+
+inputs:
+  actor:
+    description: 'Triggering GitHub actor'
+    required: true
+  token:
+    description: 'GitHub token for commenting & checks'
+    required: true
+  version:
+    description: 'Released version'
+    required: false
+  release_result:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 📝 Generate Release Summary
+      id: gen
+      shell: bash
+      run: |
+        SUMMARY_MD="summary-release.md"
+
+        result_icon() {
+          case "$1" in
+            success) echo "✅";;
+            failure) echo "❌";;
+            skipped) echo "⏭️";;
+            cancelled) echo "⚠️";;
+            *) echo "❔";;
+          esac
+        }
+
+        display_status() {
+          local value="$1"
+          if [ -z "$value" ]; then echo "skipped"; else echo "$value"; fi
+        }
+
+        RELEASE=$(display_status "${{ inputs.release_result }}")
+
+        # Determine overall result
+        ALL_STATUS="$RELEASE"
+
+        VERSION="${{ inputs.version }}"
+        [ -z "$VERSION" ] && VERSION="(auto / detected)"
+
+        if echo "$ALL_STATUS" | grep -q "failure"; then
+          OVERALL="failure"
+          OVERALL_STATUS="❌ Release Failed"
+          OVERALL_BADGE="🔴 CI Status: Release Failed"
+        elif echo "$ALL_STATUS" | grep -q "cancelled"; then
+          OVERALL="cancelled"
+          OVERALL_STATUS="⚠️ Release Cancelled"
+          OVERALL_BADGE="⚠️ CI Status: Release Cancelled"
+        else
+          OVERALL="success"
+          OVERALL_STATUS="🎉 Release Successful"
+          OVERALL_BADGE="🟢 CI Status: Release Completed"
+        fi
+
+        {
+          echo "### ${OVERALL_BADGE}"
+          echo ""
+          echo "🧾 **Release Results** — ${OVERALL_STATUS}"
+          echo ""
+          echo "| Key | Value |"
+          echo "|------|--------|"
+          echo "| 🚀 Release | $(result_icon "$RELEASE") ($RELEASE) |"
+          echo "| 🔢 Version | ${VERSION} |"
+
+          echo ""
+          echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            echo "🔗 **PR:** #${{ github.event.pull_request.number }} by @${{ inputs.actor }}"
+          fi
+          echo "---"
+          echo "🕒 Generated on $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "Triggered by **@${{ inputs.actor }}**"
+        } > "$SUMMARY_MD"
+
+        echo ""
+        echo "===== 🧾 RELEASE SUMMARY (${OVERALL_STATUS}) ====="
+        cat "$SUMMARY_MD"
+        echo "===================================="
+
+        # export outputs for later steps
+        echo "summary_path=$SUMMARY_MD" >> "$GITHUB_OUTPUT"
+        echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
+        echo "overall_label=$OVERALL_STATUS" >> "$GITHUB_OUTPUT"
+
+    - name: 💬 Comment on Commit
+      if: always()
+      uses: peter-evans/commit-comment@v3
+      with:
+        token: ${{ inputs.token }}
+        body-path: ${{ steps.gen.outputs.summary_path }}
+
+    - name: 💬 Post Summary to PR (if available)
+      if: github.event.pull_request.number != ''
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: Release Summary
+        path: ${{ steps.gen.outputs.summary_path }}
+
+    - name: 🟩 Create Check Run
+      if: always()
+      uses: LouisBrunner/checks-action@v2
+      with:
+        token: ${{ inputs.token }}
+        name: '🧾 Release Summary (${{ steps.gen.outputs.overall_label }})'
+        conclusion: ${{ steps.gen.outputs.overall }}
+        output: |
+          {
+            "summary": "Release report generated — see PR comment / commit comment for full details."
+          }
