@@ -30,7 +30,7 @@ runs:
     - name: checklist-release | [NPM] publish
       shell: bash
       run: |
-        pnpm nx run @vx:@vx-ws/release --version=${{ inputs.version }} ${{ inputs.args }}
+        pnpm nx run @vx:@vx-ws/release -v=${{ inputs.version }} ${{ inputs.args }}
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
