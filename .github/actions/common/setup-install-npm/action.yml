@@ -54,7 +54,9 @@ runs:
       env:
         HEROUI_AUTH_TOKEN: ${{ inputs.HEROUI_AUTH_TOKEN }}
       run: |
+        pnpm rebuild @heroui-pro/react || true
         pnpm heroui-pro install --yes || true
+        pnpm rebuild @heroui-pro/react || true
         test -e node_modules/@heroui-pro/react/dist/css/index.css || find node_modules/@heroui-pro/react -maxdepth 4 -type f
 
     - name: setup | pnpm version check
