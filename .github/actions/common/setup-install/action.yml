@@ -1,6 +1,11 @@
 name: Setup Node.js and pnpm
 description: Sets up Node.js and pnpm with caching
 
+inputs:
+  HEROUI_AUTH_TOKEN:
+    required: false
+    type: string
+
 runs:
   using: composite
   steps:
@@ -22,9 +27,19 @@ runs:
     #     git config --global user.email "deployer@vezham.com"
     #     git config --global user.name "Deployer Vezham"
 
+    - name: setup | HeroUI auth token
+      shell: bash
+      run: echo "HEROUI_AUTH_TOKEN=${{ inputs.HEROUI_AUTH_TOKEN }}" >> "$GITHUB_ENV"
+
     - name: setup | pnpm install
       shell: bash
       run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: setup | Install Pro dependencies
+      shell: bash
+      run: |
+        pnpm rebuild @heroui-pro/react
+        test -e node_modules/@heroui-pro/react/dist/css/index.css || find node_modules/@heroui-pro/react -maxdepth 4 -type f
 
     - name: setup | pnpm version check
       shell: bash
