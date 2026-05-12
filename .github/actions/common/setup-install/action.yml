@@ -38,9 +38,12 @@ runs:
     - name: setup | Install Pro dependencies
       if: ${{ inputs.HEROUI_AUTH_TOKEN != '' }}
       shell: bash
+      env:
+        HEROUI_AUTH_TOKEN: ${{ inputs.HEROUI_AUTH_TOKEN }}
       run: |
-        pnpm rebuild @heroui-pro/react
-        test -e node_modules/@heroui-pro/react/dist/css/index.css || find node_modules/@heroui-pro/react -maxdepth 4 -type f
+        pnpm heroui-pro install --yes
+        node -e "const fs=require('node:fs');const path='node_modules/@heroui-pro/react/package.json';if(!fs.existsSync(path)){throw new Error('@heroui-pro/react is not installed');}const pkg=JSON.parse(fs.readFileSync(path,'utf8'));if(!(pkg.exports||pkg.main||pkg.module)){throw new Error('@heroui-pro/react runtime entry missing after install');}"
+        test -e node_modules/@heroui-pro/react/dist/css/index.css
 
     - name: setup | pnpm version check
       shell: bash
