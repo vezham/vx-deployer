@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # $name (apps_pods/accounts, apps_pods/business, apps_suits/hq,..)
-# $1 - name (vx/config/firebase/$name.json)
+# $1 - name (vx/deploy/firebase/$name.json)
 
 name=${1:-"app"}
 
 # read config
-config=`cat vx/config/firebase/$name.json`
+config=`cat vx/deploy/firebase/$name.json`
 
 # create firebase.json file
 touch "firebase.json"

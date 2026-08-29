@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/main.mjs",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["data/*"]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/main.mjs"
+    }
+  ]
+}

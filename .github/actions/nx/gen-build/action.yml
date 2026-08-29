@@ -5,6 +5,12 @@ runs:
   using: composite
   steps:
     - name: setup | build
+      continue-on-error: true
+      shell: bash
+      run: |
+        pnpm nx run ${{ env.VX_APP_NAME }}:deploy:generate
+
+    - name: setup | build
       shell: bash
       run: |
         pnpm nx run ${{ env.VX_APP_NAME }}:build
