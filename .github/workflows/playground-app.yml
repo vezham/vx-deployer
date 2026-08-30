@@ -1,0 +1,70 @@
+name: playground-app | deployer
+
+on:
+  workflow_call:
+    inputs:
+      CALLER:
+        required: true
+        type: string
+
+jobs:
+  tva:
+    name: dc/TVA
+    if: ${{ inputs.CALLER == '-timeline' || inputs.CALLER == 'next' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-deployer/.github/workflows/playground-app.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.PLAYGROUND_DOCS_TVA_GCP_SA_KEY }}
+      # GCP_SA_KEY: ${{ secrets.PLAYGROUND_APP_TVA_GCP_SA_KEY }}
+      HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+    with:
+      GIT_BRANCH: ${{ inputs.CALLER }}
+      APP_NAME: playground-app
+      IS_DEBUG: true
+      IS_BETA: true
+
+  dev:
+    name: dc/dev
+    if: ${{ inputs.CALLER == 'deploy/dev' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-deployer/.github/workflows/playground-app.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.PLAYGROUND_APP_DEV_GCP_SA_KEY }}
+      HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+    with:
+      GIT_BRANCH: deploy/dev
+      APP_NAME: playground-app
+      IS_DEBUG: true
+      IS_BETA: true
+
+  qa:
+    name: dc/qa
+    if: ${{ inputs.CALLER == 'deploy/qa' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-deployer/.github/workflows/playground-app.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.PLAYGROUND_APP_QA_GCP_SA_KEY }}
+      HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+    with:
+      GIT_BRANCH: deploy/qa
+      APP_NAME: playground-app
+      IS_BETA: true
+
+  preview:
+    name: dc/preview
+    if: ${{ inputs.CALLER == 'deploy/preview' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-deployer/.github/workflows/playground-app.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.PLAYGROUND_APP_PREVIEW_GCP_SA_KEY }}
+      HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+    with:
+      GIT_BRANCH: deploy/preview
+      APP_NAME: playground-app
+
+  live:
+    name: dc/live
+    if: ${{ inputs.CALLER == 'deploy/live' || inputs.CALLER == '-scheduler' }}
+    uses: vezham/vx-deployer/.github/workflows/playground-app.helper.yml@timeline
+    secrets:
+      GCP_SA_KEY: ${{ secrets.PLAYGROUND_APP_LIVE_GCP_SA_KEY }}
+      HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+    with:
+      GIT_BRANCH: deploy/live
+      APP_NAME: playground-app

@@ -1,4 +1,4 @@
-name: playground-docs | helper
+name: playground-cdn | helper
 
 on:
   workflow_call:
@@ -34,9 +34,9 @@ env:
   # REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-apps-internals' }}
   REPO: ${{ inputs.GIT_REPO || 'vezham/vx-fe-kit' }}
   BRANCH: ${{ inputs.GIT_BRANCH || 'timeline' }}
-  ENTRY_POINT: ./apps_internals/playground-docs
-  VX_APP_PATH: apps_internals/playground-docs
-  VX_APP_NAME: playground-docs
+  ENTRY_POINT: ./apps_internals/playground-cdn
+  VX_APP_PATH: apps_internals/playground-cdn
+  VX_APP_NAME: playground-cdn
 
 jobs:
   bnd:
