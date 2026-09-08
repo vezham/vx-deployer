@@ -43,8 +43,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: [22]
-        pnpm-version: [10.13.1]
+        node-version: [24]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
