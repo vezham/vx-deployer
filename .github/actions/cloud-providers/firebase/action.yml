@@ -24,7 +24,7 @@ runs:
       uses: FirebaseExtended/action-hosting-deploy@v0
       id: gcp-preview
       with:
-        expires: 14d
+        expires: 7d
         channelId: ${{ env.DX_APP_URL }}
         repoToken: ${{ env.GITHUB_TOKEN }}
         projectId: ${{ env.GCP_PROJECT_ID }}
