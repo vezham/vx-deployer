@@ -13,7 +13,17 @@ runs:
         cp -R dist/.playwright/ .vezham/playwright/
         echo "logs -> playwright-report"
 
+    - name: logs | audit
+      if: always()
+      shell: bash
+      run: |
+        if [ -d test-output/audit ]; then
+          mkdir -p .vezham/audit
+          cp -R test-output/audit/. .vezham/audit/
+        fi
+
     - name: logs | dir
+      if: always()
       shell: bash
       run: |
         mkdir -p .vezham
@@ -23,8 +33,9 @@ runs:
         ls
 
     - name: ci-setup | Upload Logs
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: vx-ci-artifact
+        name: vx-ci-artifact-${{ github.job }}-${{ github.run_attempt }}
         path: vx-ci/
         retention-days: 30
