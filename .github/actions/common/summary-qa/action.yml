@@ -103,11 +103,13 @@ runs:
           fi
           
           echo ""
-          echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          echo "---"
+          echo ""
+          echo "[Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · Attempt ${{ github.run_attempt }}"
           if [ -n "${{ github.event.pull_request.number }}" ]; then
             echo "🔗 **PR:** #${{ github.event.pull_request.number }} by @${{ inputs.actor }}"
           fi
-          echo "---"
+          echo ""
           echo "🕒 Generated on $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "Triggered by **@${{ inputs.actor }}**"
         } > "$SUMMARY_MD"

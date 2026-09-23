@@ -15,7 +15,7 @@ const footer = `[Workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GI
 for (const name of ['fallow', 'react-doctor']) {
   const report = reports.find(item => item?.tool === name)
   const lines = [
-    `## ${name} audit`,
+    `## Audit: ${name}`,
     '',
     'Findings and scores are advisory.',
     ''
@@ -54,7 +54,7 @@ for (const name of ['fallow', 'react-doctor']) {
         lines.push(`| ${label} | ${count(summary[key])} |`)
     }
   }
-  lines.push('', footer, '')
+  lines.push('', '---', '', footer, '')
   const body = lines.join('\n')
   comments[name] = `<!-- vx-audit:${name} -->\n${body}`
   sections.push(body)

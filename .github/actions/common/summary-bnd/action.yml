@@ -100,7 +100,9 @@ runs:
           fi
 
           echo ""
-          echo "🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          echo "---"
+          echo ""
+          echo "[Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · Attempt ${{ github.run_attempt }}"
           if [ -n "$PR_NO" ]; then
             if [ "$PR_MERGED" = "true" ]; then
               echo "🔗 PR: #$PR_NO ✅ merged by @${{ inputs.actor }}"
@@ -108,7 +110,7 @@ runs:
               echo "🔗 PR: #$PR_NO ❌ closed by @${{ inputs.actor }}"
             fi
           fi
-          echo "---"
+          echo ""
           echo "🕒 Generated on $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "Triggered by **@${{ inputs.actor }}**"
         } > "$SUMMARY_MD"
