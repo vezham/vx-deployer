@@ -18,6 +18,8 @@ inputs:
     required: false
   tests_result:
     required: false
+  audit_result:
+    required: false
 
   e2e_result:
     required: false # optional for repos without e2e
@@ -51,11 +53,16 @@ runs:
         LINT=$(display_status "${{ inputs.lint_result }}")
         PRETTIER=$(display_status "${{ inputs.prettier_result }}")
         TESTS=$(display_status "${{ inputs.tests_result }}")
+        AUDIT_RAW="${{ inputs.audit_result }}"
+        AUDIT=$(display_status "$AUDIT_RAW")
         E2E_RAW="${{ inputs.e2e_result }}"
         E2E=$(display_status "$E2E_RAW")
 
         # Determine overall QA result
         ALL_STATUS="$BUILD $TYPES $LINT $PRETTIER $TESTS"
+        if [ -n "$AUDIT_RAW" ]; then
+          ALL_STATUS="$ALL_STATUS $AUDIT"
+        fi
         if [ -n "$E2E_RAW" ]; then
           ALL_STATUS="$ALL_STATUS $E2E"
         fi
@@ -86,6 +93,9 @@ runs:
           echo "| 🧹 Lint | $(result_icon "$LINT") ($LINT) |"
           echo "| 🎨 Prettier | $(result_icon "$PRETTIER") ($PRETTIER) |"
           echo "| 🧪 Tests | $(result_icon "$TESTS") ($TESTS) |"
+          if [ -n "$AUDIT_RAW" ]; then
+            echo "| 🔍 Audit | $(result_icon "$AUDIT") ($AUDIT) |"
+          fi
           
           # only include E2E row if repo supports it
           if [ -n "$E2E_RAW" ]; then
