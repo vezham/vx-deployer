@@ -39,3 +39,7 @@ runs:
           🚀 ${{ env.VX_APP_NAME }} Build deployed successfully to the following URLs
           - [Preview](https://${{ env.DX_APP_URL }})
           - [Live Demo](https://${{ env.DX_APP_URL }})
+
+          ---
+
+          [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · Attempt ${{ github.run_attempt }}
