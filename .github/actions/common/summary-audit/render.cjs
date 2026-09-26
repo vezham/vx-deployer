@@ -33,6 +33,14 @@ for (const name of ['fallow', 'react-doctor']) {
           ? 'Unavailable — scoring API did not return a score'
           : 'Unavailable'
     lines.push(`**${label}: ${value}**`, '')
+    if (name === 'fallow') {
+      const health = report.healthScore
+      const healthValue =
+        Number.isFinite(health) && health >= 0 && health <= 100
+          ? `${health}/100`
+          : 'Unavailable'
+      lines.push(`**Overall health: ${healthValue} (informational)**`, '')
+    }
     lines.push('Completed.', '', '| Metric | Count |', '| --- | ---: |')
     if (name === 'fallow') {
       lines.push(`| Total findings | ${count(summary.total_issues)} |`)
