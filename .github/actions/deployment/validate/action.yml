@@ -1,0 +1,30 @@
+name: Validate deployment settings
+description: Validate the deployment environment and release channel before building or deploying.
+
+inputs:
+  APP_ENV:
+    description: Deployment environment (dev, qa, preview, or production).
+    required: true
+  RELEASE_CHANNEL:
+    description: Release channel (canary, beta, or stable).
+    required: false
+    default: stable
+
+runs:
+  using: composite
+  steps:
+    - name: Validate deployment settings
+      id: validate
+      shell: bash
+      env:
+        V_APP_ENV: ${{ inputs.APP_ENV }}
+        V_RELEASE_CHANNEL: ${{ inputs.RELEASE_CHANNEL }}
+      run: |
+        case "$V_APP_ENV" in
+          dev|qa|preview|production) ;;
+          *) echo "::error::APP_ENV must be dev, qa, preview, or production"; exit 1 ;;
+        esac
+        case "$V_RELEASE_CHANNEL" in
+          canary|beta|stable) ;;
+          *) echo "::error::RELEASE_CHANNEL must be canary, beta, or stable"; exit 1 ;;
+        esac
