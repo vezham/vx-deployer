@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# $name (__mocks__ - apps_pods/accounts, apps_pods/business, apps_suits/hq,..)
+# $name (__mocks__ - apps-pods/accounts, apps-pods/business, apps-suits/hq,..)
 # $1 - name (vx/deploy/vercel/$name.json)
 
 name=${1:-"__mocks__/mock"}

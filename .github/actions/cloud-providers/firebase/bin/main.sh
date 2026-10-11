@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# $name (apps_pods/accounts, apps_pods/business, apps_suits/hq,..)
+# $name (apps-pods/accounts, apps-pods/business, apps-suits/hq,..)
 # $1 - name (vx/deploy/firebase/$name.json)
 
 name=${1:-"app"}
