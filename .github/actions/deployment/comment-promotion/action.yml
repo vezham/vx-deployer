@@ -17,6 +17,15 @@ inputs:
   STATUS:
     description: Deployment status (in_progress, success, failure or cancelled)
     required: true
+  PREVIEW_URL:
+    description: Preview URL to record after successful deployment
+    required: false
+  PREVIEW_EXPIRES_AT:
+    description: Preview expiry timestamp
+    required: false
+  LIVE_URL:
+    description: Live URL to record after successful deployment
+    required: false
   GITHUB_TOKEN:
     description: Token with Contents write and Commit statuses write access to the source repository
     default: ${{ github.token }}
@@ -41,6 +50,9 @@ runs:
         PROMOTION_APP: ${{ inputs.APP_NAME }}
         TARGET_ENV: ${{ inputs.APP_ENV }}
         PROMOTION_STATUS: ${{ inputs.STATUS }}
+        PREVIEW_URL: ${{ inputs.PREVIEW_URL }}
+        PREVIEW_EXPIRES_AT: ${{ inputs.PREVIEW_EXPIRES_AT }}
+        LIVE_URL: ${{ inputs.LIVE_URL }}
         PROMOTION_ACTION_PATH: ${{ github.action_path }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}

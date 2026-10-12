@@ -1,0 +1,65 @@
+name: Authenticate source repository
+description: Use the built-in token locally or generate a GitHub App token for another repository
+
+inputs:
+  GIT_REPO:
+    description: Source repository in owner/repository format
+    required: true
+  APP_CLIENT_ID:
+    description: GitHub App client ID, required for another repository
+    required: false
+  APP_PRIVATE_KEY:
+    description: GitHub App private key, required for another repository
+    required: false
+  GITHUB_TOKEN:
+    description: Built-in workflow token for the caller repository
+    default: ${{ github.token }}
+
+outputs:
+  token:
+    description: Token scoped to the source repository
+    value: ${{ steps.installation.outputs.token || steps.source.outputs.local_token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Select source authentication
+      id: source
+      uses: actions/github-script@v7
+      env:
+        SOURCE_REPO: ${{ inputs.GIT_REPO }}
+        APP_CLIENT_ID: ${{ inputs.APP_CLIENT_ID }}
+        HAS_APP_PRIVATE_KEY: ${{ inputs.APP_PRIVATE_KEY != '' }}
+        LOCAL_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+      with:
+        github-token: ${{ inputs.GITHUB_TOKEN }}
+        script: |
+          const repository = process.env.SOURCE_REPO;
+          if (!/^[^/\s]+\/[^/\s]+$/.test(repository)) {
+            throw new Error('GIT_REPO must be owner/repository');
+          }
+          const caller = `${context.repo.owner}/${context.repo.repo}`;
+          const requiresApp = repository.toLowerCase() !== caller.toLowerCase();
+          if (requiresApp && (!process.env.APP_CLIENT_ID || process.env.HAS_APP_PRIVATE_KEY !== 'true')) {
+            throw new Error(`To access ${repository} from ${caller}, configure SOURCE_APP_CLIENT_ID as an Actions variable and SOURCE_APP_PRIVATE_KEY as an Actions secret in the caller repository. Install the app on ${repository} with Contents and Commit statuses read/write permissions.`);
+          }
+          const [owner, repo] = repository.split('/');
+          core.setOutput('requires_app', String(requiresApp));
+          core.setOutput('owner', owner);
+          core.setOutput('repository', repo);
+          if (!requiresApp) {
+            core.setSecret(process.env.LOCAL_TOKEN);
+            core.setOutput('local_token', process.env.LOCAL_TOKEN);
+          }
+
+    - name: Generate source repository installation token
+      id: installation
+      if: ${{ steps.source.outputs.requires_app == 'true' }}
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ inputs.APP_CLIENT_ID }}
+        private-key: ${{ inputs.APP_PRIVATE_KEY }}
+        owner: ${{ steps.source.outputs.owner }}
+        repositories: ${{ steps.source.outputs.repository }}
+        permission-contents: write
+        permission-statuses: write

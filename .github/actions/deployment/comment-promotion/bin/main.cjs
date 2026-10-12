@@ -16,6 +16,60 @@ const timestamp = value =>
   value ? value.replace('T', ' ').replace(/\.\d{3}Z$|Z$/, '') : '—'
 const newestFirst = (left, right) => right.id - left.id
 
+const readLinkMetadata = event => {
+  try {
+    return JSON.parse(event.description)
+  } catch {
+    return null
+  }
+}
+
+const formatLink = (label, value) => {
+  if (!value) return '—'
+  try {
+    const url = new URL(value)
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password
+    )
+      return '—'
+    const target = url.href.replace(
+      /[()|]/g,
+      character => `%${character.charCodeAt(0).toString(16)}`
+    )
+    return `[${label}](${target})`
+  } catch {
+    return '—'
+  }
+}
+
+const successfulLinks = ({ statuses, successful, app, environment }) => {
+  const match = successful?.target_url?.match(/\/runs\/(\d+)\/attempts\/(\d+)$/)
+  if (!match) return { preview: '—', live: '—' }
+  const run = `${match[1]}/${match[2]}`
+  const link = type =>
+    statuses
+      .filter(
+        event =>
+          event.context ===
+            `vx-promotion-links/${app}/${environment}/${type}` &&
+          event.state === 'success' &&
+          readLinkMetadata(event)?.run === run
+      )
+      .sort(newestFirst)[0]
+  const preview = link('preview')
+  const expires = preview && readLinkMetadata(preview)?.expires
+  const previewLink = formatLink('Preview', preview?.target_url)
+  return {
+    preview:
+      previewLink !== '—' && expires
+        ? `${previewLink}<br>Expires ${timestamp(expires)} UTC`
+        : previewLink,
+    live: formatLink('Live', link('live')?.target_url)
+  }
+}
+
 const renderTracker = ({
   statuses,
   app,
@@ -30,7 +84,7 @@ const renderTracker = ({
       .filter(event => event.context === prefix + environment)
       .sort(newestFirst)
     if (!events.length)
-      return `| ${environment.toUpperCase()} | — Pending | — | — | — | — | — |`
+      return `| ${environment.toUpperCase()} | — Pending | — | — | — | — | — | — | — |`
     const attempts = new Map()
     for (const event of events) {
       const attempt = attempts.get(event.target_url) || {
@@ -54,7 +108,8 @@ const renderTracker = ({
     const lastSuccess = successful
       ? `[${timestamp(successful.created_at)}](${successful.target_url})`
       : '—'
-    return `| ${environment.toUpperCase()} | ${labels[latest.state]} | ${timestamp(attempt.started)} | ${finished} | ${lastSuccess} | ${actor ? `@${actor}` : '—'} | [Run](${latest.target_url}) |`
+    const links = successfulLinks({ statuses, successful, app, environment })
+    return `| ${environment.toUpperCase()} | ${labels[latest.state]} | ${timestamp(attempt.started)} | ${finished} | ${lastSuccess} | ${actor ? `@${actor}` : '—'} | [Run](${latest.target_url}) | ${links.preview} | ${links.live} |`
   })
   return [
     marker,
@@ -62,11 +117,11 @@ const renderTracker = ({
     '',
     `**Commit:** [${sha.slice(0, 7)}](${serverUrl}/${repository}/commit/${sha})`,
     '',
-    '| Environment | Latest attempt | Started (UTC) | Finished (UTC) | Last successful deployment (UTC) | Actor | Workflow |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Environment | Latest attempt | Started (UTC) | Finished (UTC) | Last successful deployment (UTC) | Actor | Workflow | Preview URL | Live URL |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
     '',
-    'Failed or cancelled retries preserve the last successful deployment. Times are UTC.'
+    'URLs belong to the last successful deployment. Failed or cancelled retries preserve them. Times are UTC.'
   ].join('\n')
 }
 
@@ -106,6 +161,34 @@ const updateTracker = async ({
     description: `${status} by ${context.actor}`,
     target_url: runUrl
   })
+  if (status === 'success') {
+    const run = `${context.runId}/${env.GITHUB_RUN_ATTEMPT}`
+    for (const [type, url] of [
+      ['preview', env.PREVIEW_URL],
+      ['live', env.LIVE_URL]
+    ]) {
+      if (!url) continue
+      if (formatLink(type, url) === '—') {
+        core.warning(`Ignoring invalid ${type} deployment URL`)
+        continue
+      }
+      const metadata = { run }
+      if (type === 'preview' && env.PREVIEW_EXPIRES_AT) {
+        const expires = new Date(env.PREVIEW_EXPIRES_AT)
+        if (!Number.isNaN(expires.getTime()))
+          metadata.expires = expires.toISOString()
+      }
+      await github.rest.repos.createCommitStatus({
+        owner,
+        repo,
+        sha,
+        state: 'success',
+        context: `vx-promotion-links/${app}/${environment}/${type}`,
+        description: JSON.stringify(metadata),
+        target_url: url
+      })
+    }
+  }
   const listTrackers = async () => {
     const comments = await github.paginate(
       github.rest.repos.listCommentsForCommit,

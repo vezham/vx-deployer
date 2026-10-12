@@ -6,6 +6,21 @@ inputs:
     required: true
     type: string
 
+  COMMENT_DEPLOYMENT:
+    description: Publish a separate deployment URL commit comment
+    default: 'true'
+
+outputs:
+  preview_url:
+    description: Deployed preview URL
+    value: ${{ steps.gcp-preview-url.outputs.value }}
+  preview_expires_at:
+    description: Preview expiry timestamp
+    value: ${{ steps.gcp-preview.outputs.expire_time }}
+  live_url:
+    description: Deployed live URL
+    value: ${{ steps.deployment-url.outputs.live_url }}
+
 runs:
   using: composite
   steps:
@@ -29,6 +44,7 @@ runs:
         repoToken: ${{ env.GITHUB_TOKEN }}
         projectId: ${{ env.GCP_PROJECT_ID }}
         firebaseServiceAccount: ${{ inputs.GCP_SA_KEY }}
+        disableComment: ${{ inputs.COMMENT_DEPLOYMENT != 'true' }}
         # entryPoint: ${{ env.ENTRY_POINT }}
 
     - name: setup | fetch preview url
@@ -50,7 +66,13 @@ runs:
         firebaseServiceAccount: ${{ inputs.GCP_SA_KEY }}
         # entryPoint: ${{ env.ENTRY_POINT }}
 
+    - name: setup | publish live URL
+      id: deployment-url
+      shell: bash
+      run: echo "live_url=https://${GCP_PROJECT_ID}.web.app" >> "$GITHUB_OUTPUT"
+
     - name: deployer | create commit comment
+      if: ${{ inputs.COMMENT_DEPLOYMENT == 'true' }}
       uses: peter-evans/commit-comment@v1
       # - https://${{ env.DX_APP_URL }}
       with:
