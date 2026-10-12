@@ -1,0 +1,52 @@
+name: Validate promotion source and destination
+description: Validate a source commit and destination environment
+
+inputs:
+  GIT_SHA:
+    description: Full 40-character source commit SHA
+    required: true
+  APP_ENV:
+    description: Destination environment (dev, qa, preview or production)
+    required: true
+  GIT_REPO:
+    description: Repository containing the source commit
+    default: ${{ github.repository }}
+  GITHUB_TOKEN:
+    description: Token with read access to the source repository
+    default: ${{ github.token }}
+
+outputs:
+  sha:
+    description: Resolved full commit SHA
+    value: ${{ steps.commit.outputs.sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate source SHA and destination
+      id: commit
+      uses: actions/github-script@v7
+      env:
+        SOURCE_SHA: ${{ inputs.GIT_SHA }}
+        TARGET_ENV: ${{ inputs.APP_ENV }}
+        SOURCE_REPO: ${{ inputs.GIT_REPO }}
+      with:
+        github-token: ${{ inputs.GITHUB_TOKEN }}
+        script: |
+          if (!/^[a-f0-9]{40}$/i.test(process.env.SOURCE_SHA)) {
+            throw new Error('GIT_SHA must be a full 40-character commit SHA');
+          }
+          if (!['dev', 'qa', 'preview', 'production'].includes(process.env.TARGET_ENV)) {
+            throw new Error('APP_ENV must be dev, qa, preview or production');
+          }
+          const repository = process.env.SOURCE_REPO;
+          if (!/^[^/\s]+\/[^/\s]+$/.test(repository)) {
+            throw new Error('GIT_REPO must be owner/repository');
+          }
+          const [owner, repo] = repository.split('/');
+          const { data: commit } = await github.rest.repos.getCommit({
+            owner,
+            repo,
+            ref: process.env.SOURCE_SHA
+          });
+          core.setOutput('sha', commit.sha);
