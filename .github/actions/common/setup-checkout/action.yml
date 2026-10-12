@@ -9,6 +9,11 @@ inputs:
     required: true
     type: string
 
+  GIT_TOKEN:
+    description: Token with read access to the source repository
+    required: false
+    default: ${{ github.token }}
+
 runs:
   using: composite
   steps:
@@ -17,4 +22,5 @@ runs:
       with:
         repository: ${{ inputs.GIT_REPO }}
         ref: ${{ inputs.GIT_BRANCH }}
+        token: ${{ inputs.GIT_TOKEN }}
         fetch-depth: 0
