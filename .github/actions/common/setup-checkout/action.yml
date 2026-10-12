@@ -12,9 +12,9 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: checkout | ${{ inputs.REPO }}@${{ inputs.BRANCH }}
+    - name: checkout | ${{ inputs.GIT_REPO }}@${{ inputs.GIT_BRANCH }}
       uses: actions/checkout@v4
       with:
-        repository: ${{ inputs.REPO }}
-        ref: ${{ inputs.BRANCH }}
+        repository: ${{ inputs.GIT_REPO }}
+        ref: ${{ inputs.GIT_BRANCH }}
         fetch-depth: 0
