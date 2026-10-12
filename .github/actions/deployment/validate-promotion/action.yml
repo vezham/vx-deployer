@@ -19,6 +19,9 @@ outputs:
   sha:
     description: Resolved full commit SHA
     value: ${{ steps.commit.outputs.sha }}
+  short_sha:
+    description: Seven-character commit SHA for display
+    value: ${{ steps.commit.outputs.short_sha }}
 
 runs:
   using: composite
@@ -49,4 +52,11 @@ runs:
             repo,
             ref: process.env.SOURCE_SHA
           });
+          const shortSha = commit.sha.slice(0, 7);
           core.setOutput('sha', commit.sha);
+          core.setOutput('short_sha', shortSha);
+          await core.summary
+            .addHeading(`Promotion: ${process.env.TARGET_ENV} | ${shortSha}`)
+            .addLink(`${repository}@${shortSha}`, commit.html_url)
+            .addRaw(`\n\nFull SHA: \`${commit.sha}\`\n`)
+            .write();
