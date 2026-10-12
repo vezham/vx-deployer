@@ -1,9 +1,12 @@
 name: Validate promotion source and destination
-description: Validate a source commit and destination environment
+description: Validate the source commit, destination and preceding successful deployment
 
 inputs:
   GIT_SHA:
     description: Full 40-character source commit SHA
+    required: true
+  APP_NAME:
+    description: Application name used by the promotion tracker
     required: true
   APP_ENV:
     description: Destination environment (dev, qa, preview or production)
@@ -12,7 +15,7 @@ inputs:
     description: Repository containing the source commit
     default: ${{ github.repository }}
   GITHUB_TOKEN:
-    description: Token with read access to the source repository
+    description: Token with Contents read and Commit statuses read access to the source repository
     default: ${{ github.token }}
 
 outputs:
@@ -33,6 +36,7 @@ runs:
         SOURCE_SHA: ${{ inputs.GIT_SHA }}
         TARGET_ENV: ${{ inputs.APP_ENV }}
         SOURCE_REPO: ${{ inputs.GIT_REPO }}
+        PROMOTION_APP: ${{ inputs.APP_NAME }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |
@@ -41,6 +45,10 @@ runs:
           }
           if (!['dev', 'qa', 'preview', 'production'].includes(process.env.TARGET_ENV)) {
             throw new Error('APP_ENV must be dev, qa, preview or production');
+          }
+          const app = process.env.PROMOTION_APP;
+          if (!app || !/^[a-z0-9][a-z0-9-]*$/.test(app)) {
+            throw new Error('APP_NAME must contain lowercase letters, numbers or hyphens');
           }
           const repository = process.env.SOURCE_REPO;
           if (!/^[^/\s]+\/[^/\s]+$/.test(repository)) {
@@ -53,10 +61,26 @@ runs:
             ref: process.env.SOURCE_SHA
           });
           const shortSha = commit.sha.slice(0, 7);
+          const prerequisites = { dev: 'tva', qa: 'dev', preview: 'qa', production: 'preview' };
+          const previousEnvironment = prerequisites[process.env.TARGET_ENV];
+          const statuses = await github.paginate(github.rest.repos.listCommitStatusesForRef, {
+            owner,
+            repo,
+            ref: commit.sha,
+            per_page: 100
+          });
+          const prerequisite = statuses.find(status =>
+            status.context === `vx-promotion/${app}/${previousEnvironment}` && status.state === 'success'
+          );
+          if (!prerequisite) {
+            throw new Error(`Cannot promote ${app}@${shortSha} to ${process.env.TARGET_ENV}: a successful ${previousEnvironment} deployment of the same app and SHA is required`);
+          }
           core.setOutput('sha', commit.sha);
           core.setOutput('short_sha', shortSha);
           await core.summary
             .addHeading(`Promotion: ${process.env.TARGET_ENV} | ${shortSha}`)
             .addLink(`${repository}@${shortSha}`, commit.html_url)
+            .addRaw(`\n\nOrder check passed: successful **${previousEnvironment}** deployment at ${prerequisite.created_at}.\n`)
+            .addLink('Prerequisite deployment run', prerequisite.target_url)
             .addRaw(`\n\nFull SHA: \`${commit.sha}\`\n`)
             .write();
