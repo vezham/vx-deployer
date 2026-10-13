@@ -39,3 +39,9 @@ in this action directory, then run the resolver tests. Commit both manifests;
 bash .github/actions/deployment/resolve-web-app/bin/setup.sh
 node --test .github/actions/deployment/resolve-web-app/bin/main.test.cjs
 ```
+
+## Promotion dropdown generation
+
+`bin/sync-choices.cjs` uses this parser and resolver to generate the enabled app
+choices for promotion workflows. See `../sync-promote-choices/README.md` for
+the shared action and local regeneration commands.

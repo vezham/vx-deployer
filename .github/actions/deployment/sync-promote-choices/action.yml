@@ -1,0 +1,38 @@
+name: Sync promotion app choices
+description: Generate or check a promotion dropdown from the checked-out web app registry
+
+inputs:
+  REGISTRY_PATH:
+    description: Registry path relative to the checked-out repository
+    default: .github/config/web-apps.yaml
+  WORKFLOW_PATH:
+    description: Promotion workflow containing the generated choice block
+    default: .github/workflows/-promote.yml
+  MODE:
+    description: Check for drift or write generated choices (check or write)
+    default: check
+
+runs:
+  using: composite
+  steps:
+    - name: Setup generator pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        package_json_file: ${{ github.action_path }}/../resolve-web-app/package.json
+        run_install: false
+
+    - name: Install generator dependencies
+      shell: bash
+      env:
+        RESOLVER_SETUP: ${{ github.action_path }}/../resolve-web-app/bin/setup.sh
+      run: bash "$RESOLVER_SETUP"
+
+    - name: Sync promotion app choices
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        CHOICES_SCRIPT: ${{ github.action_path }}/../resolve-web-app/bin/sync-choices.cjs
+        REGISTRY_PATH: ${{ inputs.REGISTRY_PATH }}
+        WORKFLOW_PATH: ${{ inputs.WORKFLOW_PATH }}
+        MODE: ${{ inputs.MODE }}
+      run: node "$CHOICES_SCRIPT"
