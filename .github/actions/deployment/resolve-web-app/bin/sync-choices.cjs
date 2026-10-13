@@ -2,7 +2,8 @@
 
 const { readFileSync, writeFileSync } = require('node:fs')
 const yaml = require('js-yaml')
-const { parseCatalog, resolveWebApp } = require('./main.cjs')
+const { getPromotionPath } = require('../../validate-promotion/bin/policy.cjs')
+const { parseCatalog, getCatalogApps, resolveWebApp } = require('./main.cjs')
 
 const startMarker =
   '        # vx-bot/INFO: Generated app choices from web-apps.yaml; do not edit.'
@@ -10,13 +11,16 @@ const endMarker = '        # vx-bot/INFO: End generated app choices.'
 
 const generateChoices = (registry, workflow) => {
   const catalog = parseCatalog(registry)
-  const apps = Object.keys(catalog.apps)
-    .filter(app => catalog.apps[app]?.enabled !== false)
+  const entries = getCatalogApps(catalog)
+  const apps = Object.keys(entries)
+    .filter(app => entries[app]?.enabled !== false)
     .sort()
   if (!apps.length)
     throw new Error('The promotion dropdown needs at least one enabled app')
   for (const app of apps) {
-    for (const environment of ['dev', 'qa', 'preview', 'production'])
+    for (const environment of getPromotionPath(
+      entries[app].promotion_path
+    ).slice(1))
       resolveWebApp(catalog, { app, environment })
   }
   const start = workflow.indexOf(startMarker)

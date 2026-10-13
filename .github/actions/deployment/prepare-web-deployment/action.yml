@@ -13,6 +13,8 @@ inputs:
     required: true
   GIT_REF:
     description: Source branch for TVA only
+  PROMOTION_PATH:
+    description: JSON array of allowed stages; omission retains the full promotion order
   GIT_SHA:
     description: Full source SHA for manual promotions
   USE_LATEST_PRODUCTION:
@@ -109,3 +111,4 @@ runs:
         GIT_SHA: ${{ inputs.USE_LATEST_PRODUCTION == 'true' && steps.production.outputs.sha || inputs.GIT_SHA }}
         APP_ENV: ${{ inputs.TRACK_ENV }}
         APP_NAME: ${{ inputs.APP_NAME }}
+        PROMOTION_PATH: ${{ inputs.PROMOTION_PATH }}

@@ -20,3 +20,8 @@ The registry resolver and source selection tests run together:
 ```sh
 node --test .github/actions/deployment/resolve-web-app/bin/main.test.cjs
 ```
+
+`PROMOTION_PATH` accepts the JSON array resolved from the app registry. It is
+forwarded to promotion validation for both manual and scheduled deployments;
+omission keeps the full order. The validator requires success in the preceding
+included stage for the same app and SHA.

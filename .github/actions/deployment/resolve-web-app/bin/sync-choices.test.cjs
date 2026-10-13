@@ -11,7 +11,7 @@ const start =
 const end = '        # vx-bot/INFO: End generated app choices.'
 const workflow = `name: Promote\nrun-name: Promote \${{ inputs.APP }}\non:\n  workflow_dispatch:\n    inputs:\n      APP:\n        required: true\n${start}\n        type: choice\n        options:\n          - old-app\n${end}\n      APP_ENV:\n        type: choice\n        options: [dev, qa, preview, production]\njobs:\n  promote:\n    uses: ./.github/workflows/web-app.yml\n`
 const catalog = () => ({
-  schema: 1,
+  schema: 2,
   defaults: {
     environments: Object.fromEntries(
       ['dev', 'qa', 'preview', 'production'].map(env => [
@@ -20,11 +20,10 @@ const catalog = () => ({
       ])
     )
   },
-  apps: Object.fromEntries(
+  'apps-cdns': Object.fromEntries(
     ['z-app', 'a-app', 'disabled-app'].map(app => [
       app,
       {
-        category: 'cdns',
         repository: 'example/apps',
         path: `apps/${app}`,
         ...(app === 'disabled-app' ? { enabled: false } : {}),
@@ -64,13 +63,11 @@ test('generation is idempotent', () => {
 
 test('50 apps across categories generate without routing changes', () => {
   const config = catalog()
-  const template = config.apps['a-app']
-  config.apps = Object.fromEntries(
-    Array.from({ length: 50 }, (_, i) => [
-      `app-${i}`,
-      { ...template, category: i % 2 ? 'cdns' : 'suites' }
-    ])
-  )
+  const template = config['apps-cdns']['a-app']
+  config['apps-cdns'] = {}
+  config['apps-suites'] = {}
+  for (let i = 0; i < 50; i++)
+    config[i % 2 ? 'apps-cdns' : 'apps-suites'][`app-${i}`] = { ...template }
   assert.equal(
     yaml.load(generateChoices(yaml.dump(config), workflow)).on.workflow_dispatch
       .inputs.APP.options.length,
@@ -80,7 +77,7 @@ test('50 apps across categories generate without routing changes', () => {
 
 test('empty enabled registry fails instead of emitting an invalid dropdown', () => {
   const config = catalog()
-  for (const app of Object.values(config.apps)) app.enabled = false
+  for (const app of Object.values(config['apps-cdns'])) app.enabled = false
   assert.throws(
     () => generateChoices(yaml.dump(config), workflow),
     /at least one/
@@ -89,13 +86,13 @@ test('empty enabled registry fails instead of emitting an invalid dropdown', () 
 
 test('invalid enabled IDs and incomplete promotion profiles fail generation', () => {
   const config = catalog()
-  config.apps['bad app'] = config.apps['a-app']
+  config['apps-cdns']['bad app'] = config['apps-cdns']['a-app']
   assert.throws(
     () => generateChoices(yaml.dump(config), workflow),
-    /Unknown web app/
+    /Invalid web app entry/
   )
-  delete config.apps['bad app']
-  delete config.apps['a-app'].credential_secrets.qa
+  delete config['apps-cdns']['bad app']
+  delete config['apps-cdns']['a-app'].credential_secrets.qa
   assert.throws(
     () => generateChoices(yaml.dump(config), workflow),
     /credential secret/
@@ -136,19 +133,64 @@ test('check detects drift without writing; write updates once and check then pas
     /MODE/
   )
   const config = catalog()
-  delete config.apps['z-app']
+  delete config['apps-cdns']['z-app']
   writeFileSync(registryPath, yaml.dump(config))
   assert.throws(() => syncChoices({ registryPath, workflowPath }), /stale/)
 })
 
 test('scalar-like IDs stay strings in workflow choices', () => {
   const config = catalog()
-  const template = config.apps['a-app']
+  const template = config['apps-cdns']['a-app']
   const apps = ['true', 'false', 'null', '123', '1e3', '0x12']
-  config.apps = Object.fromEntries(apps.map(app => [app, template]))
+  config['apps-cdns'] = Object.fromEntries(apps.map(app => [app, template]))
   const generated = yaml.load(generateChoices(yaml.dump(config), workflow))
   assert.deepEqual(
     generated.on.workflow_dispatch.inputs.APP.options,
     apps.sort()
+  )
+})
+
+const groupedCatalog = () => {
+  const config = catalog()
+  config['apps-internals'] = { 'a-app': config['apps-cdns']['a-app'] }
+  delete config['apps-cdns']['a-app']
+  return config
+}
+
+test('promotion choices span all groups and exclude disabled entries', () => {
+  const config = groupedCatalog()
+  const result = yaml.load(generateChoices(yaml.dump(config), workflow))
+  assert.deepEqual(result.on.workflow_dispatch.inputs.APP.options, [
+    'a-app',
+    'z-app'
+  ])
+})
+
+test('promotion generation rejects duplicate app IDs across categories', () => {
+  const config = groupedCatalog()
+  config['apps-pods'] = { 'a-app': config['apps-internals']['a-app'] }
+  assert.throws(
+    () => generateChoices(yaml.dump(config), workflow),
+    /Duplicate web app ID/
+  )
+})
+
+test('dropdown validates only the promotion stages enabled for each app', () => {
+  const config = groupedCatalog()
+  config['apps-internals']['a-app'].promotion_path = ['tva', 'production']
+  config['apps-cdns']['z-app'].promotion_path = ['tva', 'preview', 'production']
+  const result = yaml.load(generateChoices(yaml.dump(config), workflow))
+  assert.deepEqual(result.on.workflow_dispatch.inputs.APP.options, [
+    'a-app',
+    'z-app'
+  ])
+})
+
+test('dropdown rejects invalid promotion paths', () => {
+  const config = groupedCatalog()
+  config['apps-internals']['a-app'].promotion_path = ['production']
+  assert.throws(
+    () => generateChoices(yaml.dump(config), workflow),
+    /promotion_path/
   )
 })

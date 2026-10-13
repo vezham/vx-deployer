@@ -51,6 +51,9 @@ outputs:
   credential_secret:
     description: Name of the destination credential secret, never its value
     value: ${{ steps.resolve.outputs.credential_secret }}
+  promotion_path:
+    description: JSON array of the app promotion stages
+    value: ${{ steps.resolve.outputs.promotion_path }}
   git_ref:
     description: TVA source branch; promotions resolve a SHA separately
     value: ${{ steps.resolve.outputs.git_ref }}

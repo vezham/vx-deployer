@@ -6,7 +6,7 @@ const { resolveSource } = require('../../prepare-web-deployment/bin/main.cjs')
 
 const sha = 'a'.repeat(40)
 const catalog = () => ({
-  schema: 1,
+  schema: 2,
   defaults: {
     environments: {
       tva: { build_environment: 'dev', release_channel: 'beta', debug: true },
@@ -24,9 +24,8 @@ const catalog = () => ({
       }
     }
   },
-  apps: {
+  'apps-cdns': {
     'test-app': {
-      category: 'cdns',
       repository: 'example/apps',
       path: 'apps/test-app',
       credential_secrets: Object.fromEntries(
@@ -43,7 +42,7 @@ test('YAML registry supports comments and preserves boolean and schema version t
   const source = '# Common settings for all apps\n' + yaml.dump(catalog())
   const parsed = parseCatalog(source)
   assert.deepEqual(parsed, catalog())
-  assert.equal(parsed.schema, 1)
+  assert.equal(parsed.schema, 2)
   assert.equal(parsed.defaults.environments.qa.debug, false)
   const app = resolveWebApp(parsed, { app: 'test-app', environment: 'qa' })
   assert.equal(app.debug, 'false')
@@ -52,8 +51,8 @@ test('YAML registry supports comments and preserves boolean and schema version t
 
 test('50 YAML app entries resolve through the same shared registry', () => {
   const config = catalog()
-  const template = config.apps['test-app']
-  config.apps = Object.fromEntries(
+  const template = config['apps-cdns']['test-app']
+  config['apps-cdns'] = Object.fromEntries(
     Array.from({ length: 50 }, (_, i) => [
       `app-${String(i).padStart(2, '0')}`,
       structuredClone(template)
@@ -70,7 +69,7 @@ test('50 YAML app entries resolve through the same shared registry', () => {
 
 test('YAML aliases can share a build profile', () => {
   const parsed = parseCatalog(`
-schema: 1
+schema: 2
 defaults:
   environments:
     tva: &beta
@@ -89,17 +88,17 @@ apps: {}
 for (const [name, source] of [
   [
     'duplicate app IDs',
-    'schema: 1\ndefaults: {}\napps:\n  test-app: {}\n  test-app: {}\n'
+    'schema: 2\ndefaults: {}\napps:\n  test-app: {}\n  test-app: {}\n'
   ],
   [
     'duplicate credential mappings',
-    'schema: 1\ndefaults: {}\napps:\n  test-app:\n    credential_secrets:\n      qa: FIRST_KEY\n      qa: SECOND_KEY\n'
+    'schema: 2\ndefaults: {}\napps:\n  test-app:\n    credential_secrets:\n      qa: FIRST_KEY\n      qa: SECOND_KEY\n'
   ],
-  ['malformed YAML', 'schema: 1\ndefaults: [\n'],
-  ['multiple documents', 'schema: 1\ndefaults: {}\napps: {}\n---\nschema: 1\n'],
+  ['malformed YAML', 'schema: 2\ndefaults: [\n'],
+  ['multiple documents', 'schema: 2\ndefaults: {}\napps: {}\n---\nschema: 2\n'],
   [
     'custom executable tags',
-    'schema: 1\ndefaults: {}\napps: !!js/function function(){}\n'
+    'schema: 2\ndefaults: {}\napps: !!js/function function(){}\n'
   ],
   ['empty document', ''],
   ['scalar document', 'hello'],
@@ -180,7 +179,7 @@ test('legacy scheduler caller resolves timeline rather than a nonexistent schedu
 
 test('app overrides preserve false booleans and other inherited defaults', () => {
   const config = catalog()
-  config.apps['test-app'].environments = { dev: { debug: false } }
+  config['apps-cdns']['test-app'].environments = { dev: { debug: false } }
   const app = resolveWebApp(config, { app: 'test-app', environment: 'dev' })
   assert.equal(app.debug, 'false')
   assert.equal(app.release_channel, 'beta')
@@ -188,15 +187,15 @@ test('app overrides preserve false booleans and other inherited defaults', () =>
 
 test('category discovery supports 50 apps without app-specific workflow routing', () => {
   const config = catalog()
-  const template = config.apps['test-app']
-  config.apps = Object.fromEntries(
+  const template = config['apps-cdns']['test-app']
+  config['apps-cdns'] = Object.fromEntries(
     Array.from({ length: 50 }, (_, i) => [
       `app-${String(i).padStart(2, '0')}`,
       structuredClone(template)
     ])
   )
-  config.apps.disabled = { ...template, enabled: false }
-  config.apps.other = { ...template, category: 'pods' }
+  config['apps-cdns'].disabled = { ...template, enabled: false }
+  config['apps-pods'] = { other: { ...template } }
   const apps = listWebApps(config, 'cdns')
   assert.equal(apps.length, 50)
   assert.equal(apps[0], 'app-00')
@@ -222,7 +221,7 @@ for (const path of [
 ]) {
   test(`unsafe app path is rejected: ${JSON.stringify(path)}`, () => {
     const config = catalog()
-    config.apps['test-app'].path = path
+    config['apps-cdns']['test-app'].path = path
     assert.throws(
       () => resolveWebApp(config, { app: 'test-app', environment: 'dev' }),
       /Invalid relative app path/
@@ -233,10 +232,10 @@ for (const path of [
 test('malformed registry and missing destination credential names fail explicitly', () => {
   assert.throws(
     () => resolveWebApp({ schema: 2 }, { app: 'test-app', environment: 'dev' }),
-    /schema-1/
+    /schema-2/
   )
   const config = catalog()
-  delete config.apps['test-app'].credential_secrets.production
+  delete config['apps-cdns']['test-app'].credential_secrets.production
   assert.throws(
     () => resolveWebApp(config, { app: 'test-app', environment: 'production' }),
     /credential secret name/
@@ -245,7 +244,7 @@ test('malformed registry and missing destination credential names fail explicitl
 
 test('disabled apps cannot be promoted manually', () => {
   const config = catalog()
-  config.apps['test-app'].enabled = false
+  config['apps-cdns']['test-app'].enabled = false
   assert.throws(
     () => resolveWebApp(config, { app: 'test-app', environment: 'dev' }),
     /disabled/
@@ -412,3 +411,219 @@ for (const [name, request] of [
   test(`source selection rejects ${name}`, () =>
     assert.throws(() => resolveSource(request)))
 }
+
+const groupedCatalog = () => catalog()
+
+test('unsupported registry versions are rejected', () => {
+  for (const schema of [1, 3, '2', null]) {
+    const config = catalog()
+    config.schema = schema
+    assert.throws(() => parseCatalog(yaml.dump(config)), /schema-2/)
+  }
+})
+
+test('grouped registry derives categories and indexes IDs globally without mutation', () => {
+  const config = groupedCatalog()
+  const template = config['apps-cdns']['test-app']
+  config.apps = { books: structuredClone(template) }
+  config['apps-internals'] = { demo: structuredClone(template) }
+  config['apps-platforms'] = { academy: structuredClone(template) }
+  config['apps-pods'] = { accounts: structuredClone(template) }
+  config['apps-suites'] = { one: structuredClone(template) }
+  config['apps-widgets'] = { chat: structuredClone(template) }
+  config['apps-cdns'].disabled = { ...template, enabled: false }
+  const before = structuredClone(config)
+  for (const [category, expected] of [
+    ['apps', 'books'],
+    ['cdns', 'test-app'],
+    ['internals', 'demo'],
+    ['platforms', 'academy'],
+    ['pods', 'accounts'],
+    ['suites', 'one'],
+    ['widgets', 'chat']
+  ])
+    assert.deepEqual(listWebApps(config, category), [expected])
+  assert.deepEqual(config, before)
+})
+
+test('grouped registry supports 50 apps across categories', () => {
+  const config = groupedCatalog()
+  const template = config['apps-cdns']['test-app']
+  config['apps-cdns'] = {}
+  config['apps-internals'] = {}
+  for (let i = 0; i < 50; i++)
+    config[i % 2 ? 'apps-cdns' : 'apps-internals'][`app-${i}`] =
+      structuredClone(template)
+  assert.equal(listWebApps(parseCatalog(yaml.dump(config)), 'cdns').length, 25)
+  assert.equal(listWebApps(config, 'internals').length, 25)
+})
+
+test('duplicate IDs across groups fail even when one entry is disabled', () => {
+  const config = groupedCatalog()
+  config['apps-pods'] = {
+    'test-app': { ...config['apps-cdns']['test-app'], enabled: false }
+  }
+  assert.throws(() => parseCatalog(yaml.dump(config)), /Duplicate web app ID/)
+  assert.throws(() => listWebApps(config, 'cdns'), /Duplicate web app ID/)
+  assert.throws(
+    () => resolveWebApp(config, { app: 'test-app', environment: 'dev' }),
+    /Duplicate web app ID/
+  )
+})
+
+for (const [name, mutate, error] of [
+  [
+    'unknown group',
+    config => {
+      config.cdns = {}
+    },
+    /Unknown or invalid/
+  ],
+  [
+    'non-map group',
+    config => {
+      config['apps-pods'] = []
+    },
+    /Unknown or invalid/
+  ],
+  [
+    'non-map app',
+    config => {
+      config['apps-cdns']['test-app'] = null
+    },
+    /Invalid web app entry/
+  ],
+  [
+    'invalid app ID',
+    config => {
+      config['apps-cdns']['Bad App'] = {}
+    },
+    /Invalid web app entry/
+  ],
+  [
+    'redundant category',
+    config => {
+      config['apps-cdns']['test-app'].category = 'pods'
+    },
+    /Remove category/
+  ],
+  [
+    'missing groups',
+    config => {
+      delete config['apps-cdns']
+    },
+    /at least one/
+  ]
+]) {
+  test(`grouped registry rejects ${name}`, () => {
+    const config = groupedCatalog()
+    mutate(config)
+    assert.throws(() => parseCatalog(yaml.dump(config)), error)
+  })
+}
+
+test('empty grouped categories are valid and discover no apps', () => {
+  const config = groupedCatalog()
+  config['apps-cdns'] = {}
+  assert.deepEqual(listWebApps(parseCatalog(yaml.dump(config)), 'cdns'), [])
+})
+
+for (const request of [
+  { CATEGORY: 'cdns' },
+  { APP: 'test-app', APP_ENV: 'production' }
+]) {
+  test(`grouped registry API resolves ${request.CATEGORY ? 'category matrix' : 'promotion app'}`, async () => {
+    const outputs = {}
+    await main({
+      env: {
+        CONFIG_REPO: 'example/deployer',
+        CONFIG_REF: 'timeline',
+        CONFIG_PATH: '.github/config/web-apps.yaml',
+        ...request
+      },
+      github: {
+        rest: {
+          repos: {
+            getContent: async () => ({
+              data: {
+                type: 'file',
+                encoding: 'base64',
+                content: Buffer.from(yaml.dump(groupedCatalog())).toString(
+                  'base64'
+                )
+              }
+            })
+          }
+        }
+      },
+      core: {
+        setOutput: (key, value) => {
+          outputs[key] = value
+        }
+      }
+    })
+    if (request.CATEGORY)
+      assert.deepEqual(JSON.parse(outputs.apps), ['test-app'])
+    else {
+      assert.equal(outputs.app, 'test-app')
+      assert.equal(outputs.credential_secret, 'TEST_PRODUCTION_GCP_SA_KEY')
+    }
+  })
+}
+
+test('apps without promotion_path emit the full order', () => {
+  const app = resolveWebApp(groupedCatalog(), {
+    app: 'test-app',
+    environment: 'production'
+  })
+  assert.deepEqual(JSON.parse(app.promotion_path), [
+    'tva',
+    'dev',
+    'qa',
+    'preview',
+    'production'
+  ])
+})
+
+for (const path of [
+  ['tva', 'preview', 'production'],
+  ['tva', 'production']
+]) {
+  test(`app path ${path.join(' → ')} works independently of category`, () => {
+    const config = groupedCatalog()
+    config['apps-cdns']['test-app'].promotion_path = path
+    const template = structuredClone(config['apps-cdns']['test-app'])
+    config['apps-platforms'] = { academy: template }
+    for (const app of ['test-app', 'academy']) {
+      assert.deepEqual(
+        JSON.parse(
+          resolveWebApp(config, { app, caller: 'timeline' }).promotion_path
+        ),
+        path
+      )
+      for (const environment of path.slice(1))
+        assert.equal(
+          resolveWebApp(config, { app, environment }).track_environment,
+          environment
+        )
+      for (const environment of ['dev', 'qa', 'preview'].filter(
+        env => !path.includes(env)
+      ))
+        assert.throws(
+          () => resolveWebApp(config, { app, environment }),
+          /not in the app promotion_path/
+        )
+    }
+  })
+}
+
+test('invalid registry promotion paths fail explicitly', () => {
+  const config = groupedCatalog()
+  config['apps-cdns']['test-app'].promotion_path = [
+    'tva',
+    'preview',
+    'qa',
+    'production'
+  ]
+  assert.throws(() => listWebApps(config, 'cdns'), /promotion_path/)
+})

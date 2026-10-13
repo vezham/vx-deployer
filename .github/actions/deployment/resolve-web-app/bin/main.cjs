@@ -1,27 +1,54 @@
 'use strict'
 
 const yaml = require('js-yaml')
+const { getPromotionPath } = require('../../validate-promotion/bin/policy.cjs')
 
 const environments = ['tva', 'dev', 'qa', 'preview', 'production']
 const isObject = value =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
 
-const validateCatalog = catalog => {
-  if (
-    !isObject(catalog) ||
-    catalog.schema !== 1 ||
-    !isObject(catalog.apps) ||
-    !isObject(catalog.defaults)
-  ) {
+const groups = {
+  apps: 'apps',
+  'apps-cdns': 'cdns',
+  'apps-internals': 'internals',
+  'apps-platforms': 'platforms',
+  'apps-pods': 'pods',
+  'apps-suites': 'suites',
+  'apps-widgets': 'widgets'
+}
+
+const getCatalogApps = catalog => {
+  if (!isObject(catalog) || catalog.schema !== 2 || !isObject(catalog.defaults))
     throw new Error(
-      'Expected a schema-1 web app registry with apps and defaults'
+      'Expected a grouped schema-2 web app registry with defaults'
     )
+
+  const apps = Object.create(null)
+  let groupCount = 0
+  for (const [group, entries] of Object.entries(catalog)) {
+    if (group === 'schema' || group === 'defaults') continue
+    if (!Object.hasOwn(groups, group) || !isObject(entries))
+      throw new Error(`Unknown or invalid web app group: ${group}`)
+    groupCount++
+    for (const [app, config] of Object.entries(entries)) {
+      if (!/^[a-z0-9][a-z0-9-]*$/.test(app) || !isObject(config))
+        throw new Error(`Invalid web app entry: ${group}/${app}`)
+      if (Object.hasOwn(apps, app))
+        throw new Error(`Duplicate web app ID across groups: ${app}`)
+      if (Object.hasOwn(config, 'category'))
+        throw new Error(
+          `Remove category from ${app}; it is derived from ${group}`
+        )
+      apps[app] = { ...config, category: groups[group] }
+    }
   }
+  if (!groupCount) throw new Error('Expected at least one web app group')
+  return apps
 }
 
 const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
-  validateCatalog(catalog)
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(app) || !Object.hasOwn(catalog.apps, app)) {
+  const apps = getCatalogApps(catalog)
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(app) || !Object.hasOwn(apps, app)) {
     throw new Error(`Unknown web app: ${app}`)
   }
   if (caller && !['timeline', '-scheduler'].includes(caller)) {
@@ -38,9 +65,14 @@ const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
   ) {
     throw new Error('Promotion APP_ENV must be dev, qa, preview or production')
   }
-  const config = catalog.apps[app]
+  const config = apps[app]
   if (!isObject(config) || config.enabled === false)
     throw new Error(`Web app is disabled or invalid: ${app}`)
+  const promotionPath = getPromotionPath(config.promotion_path)
+  if (!promotionPath.includes(trackEnvironment))
+    throw new Error(
+      `Cannot promote ${app} to ${trackEnvironment}: destination is not in the app promotion_path (${promotionPath.join(' → ')})`
+    )
   if (
     typeof config.category !== 'string' ||
     !/^[a-z0-9][a-z0-9-]*$/.test(config.category)
@@ -87,17 +119,18 @@ const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
     release_channel: settings.release_channel,
     debug: String(settings.debug),
     credential_secret: credential,
+    promotion_path: JSON.stringify(promotionPath),
     git_ref: caller === '-scheduler' ? 'timeline' : caller
   }
 }
 
 const listWebApps = (catalog, category) => {
-  validateCatalog(catalog)
+  const apps = getCatalogApps(catalog)
   if (!/^[a-z0-9][a-z0-9-]*$/.test(category))
     throw new Error('Invalid web app category')
-  return Object.keys(catalog.apps)
+  return Object.keys(apps)
     .filter(app => {
-      const config = catalog.apps[app]
+      const config = apps[app]
       if (config?.enabled === false || config?.category !== category)
         return false
       resolveWebApp(catalog, { app, environment: 'production' })
@@ -108,7 +141,7 @@ const listWebApps = (catalog, category) => {
 
 const parseCatalog = source => {
   const catalog = yaml.load(source, { schema: yaml.JSON_SCHEMA })
-  validateCatalog(catalog)
+  getCatalogApps(catalog)
   return catalog
 }
 
@@ -152,4 +185,10 @@ const main = async ({ github, core, env = process.env }) => {
     core.setOutput(name, value)
 }
 
-module.exports = { parseCatalog, resolveWebApp, listWebApps, main }
+module.exports = {
+  parseCatalog,
+  getCatalogApps,
+  resolveWebApp,
+  listWebApps,
+  main
+}

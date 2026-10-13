@@ -7,8 +7,12 @@ apps for a scheduled workflow matrix. Matrix outputs stay JSON for GitHub Action
 
 The parser preserves numeric and boolean values, supports comments and aliases,
 and rejects duplicate keys, malformed YAML and multiple documents. The registry
-must be a schema-1 mapping with `defaults` and `apps`. Unknown app IDs or invalid
+uses `schema: 2`, shared `defaults` and top-level groups (`apps`, `apps-cdns`,
+`apps-internals`, `apps-platforms`, `apps-pods`, `apps-suites`, `apps-widgets`).
+Categories are derived from these keys; entries omit `category`. IDs must be
+unique across groups, including disabled entries. Unknown app IDs or invalid
 settings fail before deployment; registry API errors do not substitute defaults.
+The grouped `schema: 2` format is the baseline. Other registry versions are rejected.
 
 The parser uses YAML's JSON scalar schema so values match the previous JSON
 registry. Use lowercase `true`/`false` for booleans. Shared defaults and per-app
@@ -49,3 +53,7 @@ the shared action and local regeneration commands.
 The action resolves its package manifest relative to `GITHUB_WORKSPACE` before
 calling `pnpm/action-setup`, whose `package_json_file` input is joined to that
 workspace path. This also works when the downloaded action is outside the checkout.
+
+Apps may set `promotion_path` to an ordered subset beginning with `tva` and
+ending with `production`. Omission uses the full order. The resolver rejects
+omitted destinations and emits the effective path as JSON for source validation.
