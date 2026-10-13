@@ -54,7 +54,27 @@ and an empty SHA. API errors fail the reader. The scheduler must skip when
 
 History starts with promotions using this implementation. Existing
 deployments are not inferred or backfilled. The reader is available for the
-production scheduler; schedule behavior is configured separately.
+production scheduler.
+
+## Scheduled production rebuilds
+
+`vx-fe-deployer/.github/workflows/-schedule-daily-build.cdns.yml` calls the
+static CDN promotion workflow with `APP_ENV: production` and
+`USE_LATEST_PRODUCTION: true`. SHA selection occurs inside the same
+production concurrency group used by manual promotions, so a queued schedule
+reads the current journal after the preceding deployment finishes.
+
+The schedule rebuilds the latest successful production SHA with production
+environment values. It does not automatically promote a new Preview SHA.
+No production history skips the rebuild; an API error fails it. The source
+commit and existing Preview prerequisite are still validated before building.
+Successful and failed scheduled attempts append normal journal entries and
+update the source commit tracker.
+
+The retained cron is `30 23 * * 0,3,5` (UTC): Monday, Thursday and Saturday
+at 05:00 IST. `workflow_dispatch` can trigger the same journal-based rebuild.
+Manual promotion still requires an explicit full SHA in `-promote.yml`.
+The workflow must be on the default branch for scheduled runs.
 
 ## Verify the journal logic
 
