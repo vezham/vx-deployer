@@ -1,0 +1,63 @@
+name: Read latest successful deployment
+description: Resolve the source SHA of the most recent successful environment deployment
+
+inputs:
+  JOURNAL_REPO:
+    description: Repository containing the deployment journal
+    default: ${{ github.repository }}
+  GIT_REPO:
+    description: Source repository
+    required: true
+  APP_NAME:
+    description: Application name
+    required: true
+  APP_ENV:
+    description: Destination environment
+    default: production
+  GITHUB_TOKEN:
+    description: Token with Issues read permission in the journal repository
+    default: ${{ github.token }}
+
+outputs:
+  found:
+    description: Whether a successful deployment exists
+    value: ${{ steps.latest.outputs.found }}
+  sha:
+    description: Full source SHA of the latest successful deployment
+    value: ${{ steps.latest.outputs.sha }}
+  finished_at:
+    description: Successful deployment completion time
+    value: ${{ steps.latest.outputs.finished_at }}
+  workflow_url:
+    description: Deployment workflow URL
+    value: ${{ steps.latest.outputs.workflow_url }}
+  issue_url:
+    description: Deployment journal URL
+    value: ${{ steps.latest.outputs.issue_url }}
+  entry_url:
+    description: Successful deployment entry URL
+    value: ${{ steps.latest.outputs.entry_url }}
+  preview_url:
+    description: Preview URL of the successful deployment
+    value: ${{ steps.latest.outputs.preview_url }}
+  live_url:
+    description: Live URL of the successful deployment
+    value: ${{ steps.latest.outputs.live_url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve current environment SHA
+      id: latest
+      uses: actions/github-script@v7
+      env:
+        JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+        SOURCE_REPO: ${{ inputs.GIT_REPO }}
+        DEPLOYMENT_APP: ${{ inputs.APP_NAME }}
+        TARGET_ENV: ${{ inputs.APP_ENV }}
+        JOURNAL_ACTION_PATH: ${{ github.action_path }}
+      with:
+        github-token: ${{ inputs.GITHUB_TOKEN }}
+        script: |
+          const { readLatestDeployment } = require(`${process.env.JOURNAL_ACTION_PATH}/../deployment-journal/bin/journal.cjs`);
+          await readLatestDeployment({ github, core });

@@ -1,0 +1,73 @@
+name: Append deployment journal
+description: Append one structured entry for a completed promotion attempt
+
+inputs:
+  JOURNAL_REPO:
+    description: Repository containing the deployment journal
+    default: ${{ github.repository }}
+  GIT_REPO:
+    description: Source repository
+    required: true
+  GIT_SHA:
+    description: Full deployed source SHA
+    required: true
+  APP_NAME:
+    description: Application name
+    required: true
+  APP_ENV:
+    description: Destination (dev, qa, preview or production)
+    required: true
+  STATUS:
+    description: Completed attempt status (success, failure or cancelled)
+    required: true
+  STARTED_AT:
+    description: Deployment start timestamp
+    required: false
+  FINISHED_AT:
+    description: Deployment completion timestamp
+    required: true
+  PREVIEW_URL:
+    required: false
+  PREVIEW_EXPIRES_AT:
+    required: false
+  LIVE_URL:
+    required: false
+  GITHUB_TOKEN:
+    description: Workflow token with Issues write permission in the journal repository
+    default: ${{ github.token }}
+
+outputs:
+  issue_number:
+    value: ${{ steps.journal.outputs.issue_number }}
+    description: Deployment journal issue number
+  issue_url:
+    value: ${{ steps.journal.outputs.issue_url }}
+    description: Deployment journal URL
+  entry_url:
+    value: ${{ steps.journal.outputs.entry_url }}
+    description: Deployment entry URL
+
+runs:
+  using: composite
+  steps:
+    - name: Append completed deployment
+      id: journal
+      uses: actions/github-script@v7
+      env:
+        JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+        SOURCE_REPO: ${{ inputs.GIT_REPO }}
+        SOURCE_SHA: ${{ inputs.GIT_SHA }}
+        DEPLOYMENT_APP: ${{ inputs.APP_NAME }}
+        TARGET_ENV: ${{ inputs.APP_ENV }}
+        DEPLOYMENT_STATUS: ${{ inputs.STATUS }}
+        STARTED_AT: ${{ inputs.STARTED_AT }}
+        FINISHED_AT: ${{ inputs.FINISHED_AT }}
+        PREVIEW_URL: ${{ inputs.PREVIEW_URL }}
+        PREVIEW_EXPIRES_AT: ${{ inputs.PREVIEW_EXPIRES_AT }}
+        LIVE_URL: ${{ inputs.LIVE_URL }}
+        JOURNAL_ACTION_PATH: ${{ github.action_path }}
+      with:
+        github-token: ${{ inputs.GITHUB_TOKEN }}
+        script: |
+          const { appendDeployment } = require(`${process.env.JOURNAL_ACTION_PATH}/bin/journal.cjs`);
+          await appendDeployment({ github, context, core });
