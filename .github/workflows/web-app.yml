@@ -48,6 +48,7 @@ env:
   VX_APP_PATH: ${{ inputs.APP_PATH }}
   VX_APP_NAME: ${{ inputs.APP_NAME }}
   DEPLOYMENT_JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+  NX_NO_CLOUD: 'true'
 
 jobs:
   bnd:
