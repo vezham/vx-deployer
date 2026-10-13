@@ -58,10 +58,17 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Resolve pnpm package path
+      id: package-path
+      shell: bash
+      env:
+        PACKAGE_PATH_SCRIPT: ${{ github.action_path }}/bin/resolve-package-path.cjs
+      run: node "$PACKAGE_PATH_SCRIPT"
+
     - name: Setup resolver pnpm
       uses: pnpm/action-setup@v4
       with:
-        package_json_file: ${{ github.action_path }}/package.json
+        package_json_file: ${{ steps.package-path.outputs.package_json_file }}
         run_install: false
 
     - name: Install resolver dependencies

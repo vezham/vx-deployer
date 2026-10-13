@@ -34,3 +34,7 @@ reads these committed choices; it cannot populate a dropdown at run time.
 ```sh
 node --test .github/actions/deployment/resolve-web-app/bin/sync-choices.test.cjs
 ```
+
+The action resolves its package manifest relative to `GITHUB_WORKSPACE` before
+calling `pnpm/action-setup`, whose `package_json_file` input is joined to that
+workspace path. This also works when the downloaded action is outside the checkout.

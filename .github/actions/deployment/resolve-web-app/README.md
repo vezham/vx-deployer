@@ -45,3 +45,7 @@ node --test .github/actions/deployment/resolve-web-app/bin/main.test.cjs
 `bin/sync-choices.cjs` uses this parser and resolver to generate the enabled app
 choices for promotion workflows. See `../sync-promote-choices/README.md` for
 the shared action and local regeneration commands.
+
+The action resolves its package manifest relative to `GITHUB_WORKSPACE` before
+calling `pnpm/action-setup`, whose `package_json_file` input is joined to that
+workspace path. This also works when the downloaded action is outside the checkout.
