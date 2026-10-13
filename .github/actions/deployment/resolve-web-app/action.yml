@@ -22,6 +22,9 @@ inputs:
   GITHUB_TOKEN:
     description: Token used to read the registry
     default: ${{ github.token }}
+  PRODUCTION_TARGET:
+    description: App-specific Production target; empty uses the single default deployment
+    default: ''
 
 outputs:
   apps:
@@ -57,6 +60,18 @@ outputs:
   git_ref:
     description: TVA source branch; promotions resolve a SHA separately
     value: ${{ steps.resolve.outputs.git_ref }}
+  deployments:
+    description: JSON array of app and Production target pairs
+    value: ${{ steps.resolve.outputs.deployments }}
+  production_target:
+    description: Resolved Production target
+    value: ${{ steps.resolve.outputs.production_target }}
+  values:
+    description: JSON public build variables
+    value: ${{ steps.resolve.outputs.values }}
+  secret_values:
+    description: JSON build variable to secret name references
+    value: ${{ steps.resolve.outputs.secret_values }}
 
 runs:
   using: composite
@@ -92,6 +107,7 @@ runs:
         CATEGORY: ${{ inputs.CATEGORY }}
         CALLER: ${{ inputs.CALLER }}
         APP_ENV: ${{ inputs.APP_ENV }}
+        PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

@@ -1,3 +1,8 @@
+const {
+  normalizeProductionTarget,
+  deploymentEnvironment
+} = require('../../resolve-web-app/bin/config.cjs')
+
 const environments = ['dev', 'qa', 'preview', 'production']
 const terminalStatuses = ['success', 'failure', 'cancelled']
 const recordPrefix = '<!-- vx-deployment-record:'
@@ -65,6 +70,10 @@ const parseRecord = comment => {
     validateApp(record.app)
     timestamp(record.finished_at)
     safeUrl(record.workflow_url)
+    record.production_target = normalizeProductionTarget(
+      record.production_target ?? '',
+      record.environment
+    )
     return record
   } catch {
     return null
@@ -96,7 +105,7 @@ const issueBody = (source, app) =>
     `Deployment history for **${app}** from **${source}**.`,
     '',
     'Each comment records one completed Dev, QA, Preview or Production attempt.',
-    'TVA is tracked on source commits. Failed or cancelled attempts do not replace the current successful production SHA.',
+    'TVA is tracked on source commits. Failed or cancelled attempts do not replace the current successful production SHA for each target.',
     '',
     'Entries contain structured metadata for scheduled workflows. No deployment tags are required.'
   ].join('\n')
@@ -109,7 +118,7 @@ const renderRecord = record => {
   }
   return [
     `${recordPrefix}${JSON.stringify(record)} -->`,
-    `### ${record.environment} | ${record.sha.slice(0, 7)} | ${labels[record.status]}`,
+    `### ${deploymentEnvironment(record.environment, record.production_target)} | ${record.sha.slice(0, 7)} | ${labels[record.status]}`,
     '',
     `**Source:** ${markdownLink(`${record.source_repository}@${record.sha.slice(0, 7)}`, record.source_url)}`,
     `**Started (UTC):** ${record.started_at || '—'}`,
@@ -156,15 +165,20 @@ const buildRecord = ({ context, env }) => {
   const started = env.STARTED_AT ? timestamp(env.STARTED_AT) : null
   if (started && started > finished)
     throw new Error('Deployment cannot finish before it starts')
+  const productionTarget = normalizeProductionTarget(
+    env.PRODUCTION_TARGET || '',
+    env.TARGET_ENV
+  )
   const successful = env.DEPLOYMENT_STATUS === 'success'
   return {
     schema_version: 1,
-    event_id: `${workflowRepository}/${runId}/${attempt}/${env.DEPLOYMENT_APP}/${env.TARGET_ENV}`,
+    event_id: `${workflowRepository}/${runId}/${attempt}/${env.DEPLOYMENT_APP}/${deploymentEnvironment(env.TARGET_ENV, productionTarget)}`,
     app: env.DEPLOYMENT_APP,
     source_repository: source,
     sha,
     source_url: `${env.GITHUB_SERVER_URL}/${source}/commit/${sha}`,
     environment: env.TARGET_ENV,
+    production_target: productionTarget,
     status: env.DEPLOYMENT_STATUS,
     started_at: started,
     finished_at: finished,
@@ -255,6 +269,10 @@ const readLatestDeployment = async ({ github, core, env = process.env }) => {
   validateApp(env.DEPLOYMENT_APP)
   if (!environments.includes(env.TARGET_ENV))
     throw new Error('Invalid journal environment')
+  const productionTarget = normalizeProductionTarget(
+    env.PRODUCTION_TARGET || '',
+    env.TARGET_ENV
+  )
   const target = repositoryParts(env.JOURNAL_REPO)
   const journals = await findJournals({
     github,
@@ -285,6 +303,7 @@ const readLatestDeployment = async ({ github, core, env = process.env }) => {
           record.source_repository === env.SOURCE_REPO &&
           record.app === env.DEPLOYMENT_APP &&
           record.environment === env.TARGET_ENV &&
+          record.production_target === productionTarget &&
           record.status === 'success' &&
           record.workflow_repository.toLowerCase() ===
             env.JOURNAL_REPO.toLowerCase()

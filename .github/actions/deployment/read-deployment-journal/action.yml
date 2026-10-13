@@ -17,6 +17,9 @@ inputs:
   GITHUB_TOKEN:
     description: Token with Issues read permission in the journal repository
     default: ${{ github.token }}
+  PRODUCTION_TARGET:
+    description: App-specific Production target; empty uses the single default deployment
+    default: ''
 
 outputs:
   found:
@@ -56,6 +59,7 @@ runs:
         DEPLOYMENT_APP: ${{ inputs.APP_NAME }}
         TARGET_ENV: ${{ inputs.APP_ENV }}
         JOURNAL_ACTION_PATH: ${{ github.action_path }}
+        PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

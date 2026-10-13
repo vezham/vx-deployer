@@ -5,6 +5,8 @@ const yaml = require('js-yaml')
 const { getPromotionPath } = require('../../validate-promotion/bin/policy.cjs')
 const { parseCatalog, getCatalogApps, resolveWebApp } = require('./main.cjs')
 
+const { getProductionTargets } = require('./config.cjs')
+
 const startMarker =
   '        # vx-bot/INFO: Generated app choices from web-apps.yaml; do not edit.'
 const endMarker = '        # vx-bot/INFO: End generated app choices.'
@@ -21,7 +23,10 @@ const generateChoices = (registry, workflow) => {
     for (const environment of getPromotionPath(
       entries[app].promotion_path
     ).slice(1))
-      resolveWebApp(catalog, { app, environment })
+      for (const productionTarget of environment === 'production'
+        ? getProductionTargets(entries[app])
+        : [''])
+        resolveWebApp(catalog, { app, environment, productionTarget })
   }
   const start = workflow.indexOf(startMarker)
   const end = workflow.indexOf(endMarker)

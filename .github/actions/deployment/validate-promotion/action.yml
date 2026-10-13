@@ -19,6 +19,9 @@ inputs:
   PROMOTION_PATH:
     description: JSON array of allowed stages; defaults to the full TVA-to-Production order
     required: false
+  PRODUCTION_TARGET:
+    description: App-specific Production target; empty uses the single default deployment
+    default: ''
 outputs:
   sha:
     description: Resolved full commit SHA
@@ -39,6 +42,7 @@ runs:
         PROMOTION_APP: ${{ inputs.APP_NAME }}
         PROMOTION_PATH: ${{ inputs.PROMOTION_PATH }}
         PROMOTION_VALIDATOR: ${{ github.action_path }}/bin/main.cjs
+        PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

@@ -35,6 +35,9 @@ inputs:
   GITHUB_TOKEN:
     description: Workflow token with Issues write permission in the journal repository
     default: ${{ github.token }}
+  PRODUCTION_TARGET:
+    description: App-specific Production target; empty uses the single default deployment
+    default: ''
 
 outputs:
   issue_number:
@@ -66,6 +69,7 @@ runs:
         PREVIEW_EXPIRES_AT: ${{ inputs.PREVIEW_EXPIRES_AT }}
         LIVE_URL: ${{ inputs.LIVE_URL }}
         JOURNAL_ACTION_PATH: ${{ github.action_path }}
+        PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

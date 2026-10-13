@@ -627,3 +627,135 @@ test('invalid registry promotion paths fail explicitly', () => {
   ]
   assert.throws(() => listWebApps(config, 'cdns'), /promotion_path/)
 })
+
+const { listProductionDeployments } = require('./main.cjs')
+test('single Production remains default and app/environment configuration is merged without changing the registry', () => {
+  const config = catalog(),
+    app = config['apps-cdns']['test-app']
+  config.defaults.values = { API_URL: 'global', GLOBAL: true }
+  app.values = { API_URL: 'app', APP_VALUE: 42 }
+  config.defaults.environments.production.values = {
+    API_URL: 'environment-default'
+  }
+  app.environments = {
+    production: {
+      values: { API_URL: 'production' },
+      secret_values: { API_KEY: 'TEST_API_KEY' }
+    }
+  }
+  const before = structuredClone(config)
+  const result = resolveWebApp(config, {
+    app: 'test-app',
+    environment: 'production'
+  })
+  assert.equal(result.production_target, 'default')
+  assert.deepEqual(JSON.parse(result.values), {
+    API_URL: 'production',
+    GLOBAL: true,
+    APP_VALUE: 42
+  })
+  assert.deepEqual(JSON.parse(result.secret_values), {
+    API_KEY: 'TEST_API_KEY'
+  })
+  assert.deepEqual(config, before)
+})
+test('app-specific destinations override profile, values, secrets and credentials', () => {
+  const config = catalog(),
+    app = config['apps-cdns']['test-app']
+  app.values = { API: 'app', FROM_APP: true }
+  app.secret_values = { TOKEN: 'APP_TOKEN', PUBLIC_TOKEN: 'APP_PUBLIC_TOKEN' }
+  app.environments = {
+    production: {
+      values: { API: 'production' },
+      secret_values: { SAME_KEY: 'ENV_KEY' }
+    }
+  }
+  app.production_targets = {
+    us: {
+      credential_secret: 'US_KEY',
+      values: { API: 'us', PUBLIC_TOKEN: 'public' },
+      secret_values: { SAME_KEY: 'US_API_KEY', TOKEN: 'US_TOKEN' },
+      debug: true
+    },
+    'customer-east': { credential_secret: 'CUSTOMER_KEY' }
+  }
+  delete app.credential_secrets.production
+  const result = resolveWebApp(config, {
+    app: 'test-app',
+    environment: 'production',
+    productionTarget: 'us'
+  })
+  assert.equal(result.credential_secret, 'US_KEY')
+  assert.equal(result.debug, 'true')
+  assert.deepEqual(JSON.parse(result.values), {
+    API: 'us',
+    FROM_APP: true,
+    PUBLIC_TOKEN: 'public'
+  })
+  assert.deepEqual(JSON.parse(result.secret_values), {
+    TOKEN: 'US_TOKEN',
+    SAME_KEY: 'US_API_KEY'
+  })
+  assert.deepEqual(listProductionDeployments(config, 'cdns'), [
+    { app: 'test-app', target: 'customer-east' },
+    { app: 'test-app', target: 'us' }
+  ])
+  assert.throws(
+    () => resolveWebApp(config, { app: 'test-app', environment: 'production' }),
+    /Select a Production target/
+  )
+  assert.throws(
+    () =>
+      resolveWebApp(config, {
+        app: 'test-app',
+        environment: 'production',
+        productionTarget: 'eu'
+      }),
+    /Unknown Production target/
+  )
+  assert.throws(
+    () =>
+      resolveWebApp(config, {
+        app: 'test-app',
+        environment: 'dev',
+        productionTarget: 'us'
+      }),
+    /only valid for Production/
+  )
+})
+for (const fields of [
+  { values: { V_APP_ENV: 'other' } },
+  { secret_values: { KEY: 'actual secret' } },
+  { values: { KEY: {} } },
+  { values: { KEY: null } },
+  { values: { KEY: 'public' }, secret_values: { KEY: 'SECRET_NAME' } },
+  { production_targets: {} },
+  { production_targets: { us: {} } },
+  { production_targets: { 'US East': { credential_secret: 'US_KEY' } } }
+])
+  test(`invalid app configuration fails: ${JSON.stringify(fields)}`, () => {
+    const config = catalog()
+    Object.assign(config['apps-cdns']['test-app'], fields)
+    assert.throws(() => listProductionDeployments(config, 'cdns'))
+  })
+test('different apps discover their own target sets, including an explicit default target', () => {
+  const config = catalog(),
+    template = config['apps-cdns']['test-app']
+  config['apps-cdns'].second = {
+    ...template,
+    production_targets: {
+      default: { credential_secret: 'DEFAULT_KEY' },
+      eu: { credential_secret: 'EU_KEY' }
+    }
+  }
+  assert.deepEqual(listProductionDeployments(config, 'cdns'), [
+    { app: 'second', target: 'default' },
+    { app: 'second', target: 'eu' },
+    { app: 'test-app', target: 'default' }
+  ])
+  assert.equal(
+    resolveWebApp(config, { app: 'second', environment: 'production' })
+      .credential_secret,
+    'DEFAULT_KEY'
+  )
+})

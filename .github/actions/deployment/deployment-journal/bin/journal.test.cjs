@@ -310,3 +310,54 @@ test('API failure is surfaced instead of inventing a production SHA', async () =
   await assert.rejects(f.read(), /API unavailable/)
   assert.equal(f.outputs.sha, undefined)
 })
+
+test('same run records regional targets independently and schedules never borrow another region SHA', async () => {
+  const f = fixture()
+  await f.append({ PRODUCTION_TARGET: 'us' })
+  await f.append({ PRODUCTION_TARGET: 'eu', SOURCE_SHA: 'b'.repeat(40) })
+  await f.append(
+    {
+      PRODUCTION_TARGET: 'us',
+      SOURCE_SHA: 'c'.repeat(40),
+      DEPLOYMENT_STATUS: 'failure',
+      FINISHED_AT: '2026-10-13T06:00:00Z'
+    },
+    11
+  )
+  assert.equal(f.comments.length, 3)
+  assert.notEqual(
+    parseRecord(f.comments[0]).event_id,
+    parseRecord(f.comments[1]).event_id
+  )
+  await f.read({ PRODUCTION_TARGET: 'us' })
+  assert.equal(f.outputs.sha, 'a'.repeat(40))
+  await f.read({ PRODUCTION_TARGET: 'eu' })
+  assert.equal(f.outputs.sha, 'b'.repeat(40))
+  await f.read({ PRODUCTION_TARGET: 'in' })
+  assert.equal(f.outputs.found, 'false')
+  await f.read()
+  assert.equal(f.outputs.found, 'false')
+})
+test('existing unqualified Production records belong only to default', async () => {
+  const f = fixture()
+  await f.append()
+  const record = parseRecord(f.comments[0])
+  delete record.production_target
+  f.comments[0].body = `<!-- vx-deployment-record:${JSON.stringify(record)} -->`
+  await f.read()
+  assert.equal(f.outputs.sha, 'a'.repeat(40))
+  await f.read({ PRODUCTION_TARGET: 'us' })
+  assert.equal(f.outputs.found, 'false')
+})
+test('invalid target selection fails before journal reads or writes', async () => {
+  const f = fixture()
+  await assert.rejects(
+    f.append({ TARGET_ENV: 'dev', PRODUCTION_TARGET: 'us' }),
+    /only valid/
+  )
+  await assert.rejects(
+    f.read({ PRODUCTION_TARGET: '../us' }),
+    /Invalid Production/
+  )
+  assert.equal(f.calls.length, 0)
+})

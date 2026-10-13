@@ -1,3 +1,7 @@
+const {
+  deploymentEnvironment
+} = require('../../resolve-web-app/bin/config.cjs')
+
 const environments = ['tva', 'dev', 'qa', 'preview', 'production']
 const states = {
   in_progress: 'pending',
@@ -79,7 +83,24 @@ const renderTracker = ({
   marker
 }) => {
   const prefix = `vx-promotion/${app}/`
-  const rows = environments.map(environment => {
+  const productionRows = [
+    ...new Set(
+      statuses
+        .filter(event => event.context?.startsWith(prefix))
+        .map(event => event.context.slice(prefix.length))
+        .filter(stage => /^production\/[a-z0-9][a-z0-9-]*$/.test(stage))
+    )
+  ].sort()
+  const stages = productionRows.length
+    ? [
+        ...environments.slice(0, -1),
+        ...(statuses.some(event => event.context === prefix + 'production')
+          ? ['production']
+          : []),
+        ...productionRows
+      ]
+    : environments
+  const rows = stages.map(environment => {
     const events = statuses
       .filter(event => event.context === prefix + environment)
       .sort(newestFirst)
@@ -135,7 +156,10 @@ const updateTracker = async ({
   const repository = env.SOURCE_REPO
   const sha = env.SOURCE_SHA.toLowerCase()
   const app = env.PROMOTION_APP
-  const environment = env.TARGET_ENV
+  const environment = deploymentEnvironment(
+    env.TARGET_ENV,
+    env.PRODUCTION_TARGET || ''
+  )
   const status = env.PROMOTION_STATUS
   if (!/^[^/\s]+\/[^/\s]+$/.test(repository))
     throw new Error('GIT_REPO must be owner/repository')
@@ -145,7 +169,7 @@ const updateTracker = async ({
     throw new Error(
       'APP_NAME must contain lowercase letters, numbers or hyphens'
     )
-  if (!environments.includes(environment))
+  if (!environments.includes(env.TARGET_ENV))
     throw new Error('APP_ENV must be tva, dev, qa, preview or production')
   if (!Object.hasOwn(states, status))
     throw new Error('Unsupported promotion status')

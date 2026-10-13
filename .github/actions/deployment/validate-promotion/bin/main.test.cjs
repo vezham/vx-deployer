@@ -160,3 +160,26 @@ test('status read failures propagate without approving promotion', async () => {
   await assert.rejects(validatePromotion(input), /HTTP 403/)
   assert.deepEqual(input.output, {})
 })
+
+test('each Production target validates the same app/SHA prerequisite and identifies its target', async () => {
+  for (const target of ['us', 'customer-east']) {
+    const input = context(
+      {
+        PRODUCTION_TARGET: target,
+        PROMOTION_PATH: '["tva","dev","production"]'
+      },
+      [success('dev')]
+    )
+    await validatePromotion(input)
+    assert.equal(input.output.sha, sha)
+    assert(
+      input.summaries.some(args =>
+        String(args[0]).includes(`production/${target}`)
+      )
+    )
+  }
+})
+test('a region cannot bypass the configured app prerequisite', async () => {
+  const input = context({ PRODUCTION_TARGET: 'us' }, [success('production/eu')])
+  await assert.rejects(validatePromotion(input), /successful preview/)
+})

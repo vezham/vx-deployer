@@ -194,3 +194,16 @@ test('dropdown rejects invalid promotion paths', () => {
     /promotion_path/
   )
 })
+
+test('dropdown validates app-specific Production targets', () => {
+  const config = catalog()
+  config['apps-cdns']['a-app'].production_targets = {
+    'custom-region': { credential_secret: 'CUSTOM_KEY' }
+  }
+  delete config['apps-cdns']['a-app'].credential_secrets.production
+  assert.doesNotThrow(() => generateChoices(yaml.dump(config), workflow))
+  config['apps-cdns']['a-app'].production_targets['custom-region'].values = {
+    V_APP_NAME: 'override'
+  }
+  assert.throws(() => generateChoices(yaml.dump(config), workflow), /reserved/)
+})

@@ -3,6 +3,12 @@
 const yaml = require('js-yaml')
 const { getPromotionPath } = require('../../validate-promotion/bin/policy.cjs')
 
+const {
+  getProductionTargets,
+  normalizeProductionTarget,
+  mergeBuildConfig
+} = require('./config.cjs')
+
 const environments = ['tva', 'dev', 'qa', 'preview', 'production']
 const isObject = value =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -46,7 +52,10 @@ const getCatalogApps = catalog => {
   return apps
 }
 
-const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
+const resolveWebApp = (
+  catalog,
+  { app, caller = '', environment = '', productionTarget = '' }
+) => {
   const apps = getCatalogApps(catalog)
   if (!/^[a-z0-9][a-z0-9-]*$/.test(app) || !Object.hasOwn(apps, app)) {
     throw new Error(`Unknown web app: ${app}`)
@@ -88,9 +97,22 @@ const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
   ) {
     throw new Error(`Invalid relative app path for ${app}`)
   }
+  const target = normalizeProductionTarget(productionTarget, trackEnvironment)
+  let targetSettings
+  if (trackEnvironment === 'production') {
+    const targets = getProductionTargets(config)
+    if (!productionTarget && !targets.includes('default'))
+      throw new Error(
+        `Select a Production target for ${app}: ${targets.join(', ')}`
+      )
+    if (!targets.includes(target))
+      throw new Error(`Unknown Production target for ${app}: ${target}`)
+    targetSettings = config.production_targets?.[target]
+  }
   const settings = {
     ...catalog.defaults.environments?.[trackEnvironment],
-    ...config.environments?.[trackEnvironment]
+    ...config.environments?.[trackEnvironment],
+    ...targetSettings
   }
   if (
     !['dev', 'qa', 'preview', 'production'].includes(
@@ -101,7 +123,16 @@ const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
   ) {
     throw new Error(`Invalid ${trackEnvironment} build settings for ${app}`)
   }
-  const credential = config.credential_secrets?.[trackEnvironment]
+  const credential =
+    targetSettings?.credential_secret ||
+    config.credential_secrets?.[trackEnvironment]
+  const build = mergeBuildConfig([
+    catalog.defaults,
+    config,
+    catalog.defaults.environments?.[trackEnvironment],
+    config.environments?.[trackEnvironment],
+    targetSettings
+  ])
   if (
     typeof credential !== 'string' ||
     !/^[A-Z_][A-Z0-9_]*$/.test(credential)
@@ -119,6 +150,9 @@ const resolveWebApp = (catalog, { app, caller = '', environment = '' }) => {
     release_channel: settings.release_channel,
     debug: String(settings.debug),
     credential_secret: credential,
+    production_target: target,
+    values: JSON.stringify(build.values),
+    secret_values: JSON.stringify(build.secret_values),
     promotion_path: JSON.stringify(promotionPath),
     git_ref: caller === '-scheduler' ? 'timeline' : caller
   }
@@ -133,10 +167,22 @@ const listWebApps = (catalog, category) => {
       const config = apps[app]
       if (config?.enabled === false || config?.category !== category)
         return false
-      resolveWebApp(catalog, { app, environment: 'production' })
+      for (const productionTarget of getProductionTargets(config))
+        resolveWebApp(catalog, {
+          app,
+          environment: 'production',
+          productionTarget
+        })
       return true
     })
     .sort()
+}
+
+const listProductionDeployments = (catalog, category) => {
+  const entries = getCatalogApps(catalog)
+  return listWebApps(catalog, category).flatMap(app =>
+    getProductionTargets(entries[app]).map(target => ({ app, target }))
+  )
 }
 
 const parseCatalog = source => {
@@ -173,13 +219,19 @@ const main = async ({ github, core, env = process.env }) => {
     Buffer.from(data.content, 'base64').toString('utf8')
   )
   if (env.CATEGORY) {
-    core.setOutput('apps', JSON.stringify(listWebApps(catalog, env.CATEGORY)))
+    const deployments = listProductionDeployments(catalog, env.CATEGORY)
+    core.setOutput(
+      'apps',
+      JSON.stringify([...new Set(deployments.map(item => item.app))])
+    )
+    core.setOutput('deployments', JSON.stringify(deployments))
     return
   }
   const resolved = resolveWebApp(catalog, {
     app: env.APP,
     caller: env.CALLER,
-    environment: env.APP_ENV
+    environment: env.APP_ENV,
+    productionTarget: env.PRODUCTION_TARGET || ''
   })
   for (const [name, value] of Object.entries(resolved))
     core.setOutput(name, value)
@@ -190,5 +242,6 @@ module.exports = {
   getCatalogApps,
   resolveWebApp,
   listWebApps,
+  listProductionDeployments,
   main
 }

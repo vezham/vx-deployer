@@ -25,3 +25,16 @@ node --test .github/actions/deployment/resolve-web-app/bin/main.test.cjs
 forwarded to promotion validation for both manual and scheduled deployments;
 omission keeps the full order. The validator requires success in the preceding
 included stage for the same app and SHA.
+
+## Production targets and app settings
+
+`PRODUCTION_TARGET` selects an app-specific Production destination. Single Production
+uses `default`; named-only registry maps require an explicit target. Targets are rejected
+for non-Production deployments. The promotion prerequisite is still the preceding stage
+in that app's `promotion_path`, for the same source SHA. The journal resolves a separate
+latest successful SHA for each Production target.
+
+The resolver merges `values` and `secret_values` from defaults,
+app, default environment, app environment and target, in that order. It outputs public
+values and secret names, never secret contents. `deployments` contains `{app, target}`
+pairs for category scheduling. See the controller registry README for configuration.

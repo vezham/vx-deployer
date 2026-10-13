@@ -1,5 +1,8 @@
 'use strict'
 
+const {
+  deploymentEnvironment
+} = require('../../resolve-web-app/bin/config.cjs')
 const { getPromotionPath, getPreviousEnvironment } = require('./policy.cjs')
 
 const validatePromotion = async ({ github, core, env = process.env }) => {
@@ -19,6 +22,10 @@ const validatePromotion = async ({ github, core, env = process.env }) => {
     throw new Error('GIT_REPO must be owner/repository')
   const stages = getPromotionPath(
     env.PROMOTION_PATH ? JSON.parse(env.PROMOTION_PATH) : undefined
+  )
+  const destination = deploymentEnvironment(
+    environment,
+    env.PRODUCTION_TARGET || ''
   )
   const previousEnvironment = getPreviousEnvironment(environment, stages)
   const [owner, repo] = repository.split('/')
@@ -55,7 +62,7 @@ const validatePromotion = async ({ github, core, env = process.env }) => {
   core.setOutput('sha', commit.sha)
   core.setOutput('short_sha', shortSha)
   await core.summary
-    .addHeading(`Promotion: ${environment} | ${shortSha}`)
+    .addHeading(`Promotion: ${destination} | ${shortSha}`)
     .addLink(`${repository}@${shortSha}`, commit.html_url)
     .addRaw(`\n\nPromotion path: **${stages.join(' → ')}**.\n`)
     .addRaw(
