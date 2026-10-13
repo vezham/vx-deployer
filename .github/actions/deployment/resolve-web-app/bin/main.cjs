@@ -54,7 +54,13 @@ const getCatalogApps = catalog => {
 
 const resolveWebApp = (
   catalog,
-  { app, caller = '', environment = '', productionTarget = '' }
+  {
+    app,
+    caller = '',
+    callerRepository = '',
+    environment = '',
+    productionTarget = ''
+  }
 ) => {
   const apps = getCatalogApps(catalog)
   if (!/^[a-z0-9][a-z0-9-]*$/.test(app) || !Object.hasOwn(apps, app)) {
@@ -67,6 +73,16 @@ const resolveWebApp = (
   }
   if (caller && environment)
     throw new Error('Do not combine CALLER with a promotion APP_ENV')
+  if (
+    caller &&
+    (typeof callerRepository !== 'string' ||
+      !/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(callerRepository))
+  )
+    throw new Error(
+      'TVA requires the calling repository in owner/repository form'
+    )
+  if (!caller && callerRepository)
+    throw new Error('Caller repository is only used for TVA builds')
   const trackEnvironment = caller ? 'tva' : environment
   if (
     !environments.includes(trackEnvironment) ||
@@ -143,7 +159,7 @@ const resolveWebApp = (
   }
   return {
     app,
-    repository: config.repository,
+    repository: caller ? callerRepository : config.repository,
     path: config.path,
     track_environment: trackEnvironment,
     build_environment: settings.build_environment,
@@ -230,6 +246,7 @@ const main = async ({ github, core, env = process.env }) => {
   const resolved = resolveWebApp(catalog, {
     app: env.APP,
     caller: env.CALLER,
+    callerRepository: env.CALLER_REPO || '',
     environment: env.APP_ENV,
     productionTarget: env.PRODUCTION_TARGET || ''
   })

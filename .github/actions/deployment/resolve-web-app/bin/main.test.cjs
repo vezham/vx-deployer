@@ -141,7 +141,11 @@ test('malformed YAML fails before publishing any registry outputs', async () => 
 })
 
 test('TVA retains Dev/Beta/debug settings while tracking TVA', () => {
-  const app = resolveWebApp(catalog(), { app: 'test-app', caller: 'timeline' })
+  const app = resolveWebApp(catalog(), {
+    app: 'test-app',
+    caller: 'timeline',
+    callerRepository: 'example/apps'
+  })
   assert.equal(app.track_environment, 'tva')
   assert.equal(app.build_environment, 'dev')
   assert.equal(app.release_channel, 'beta')
@@ -172,7 +176,11 @@ for (const [environment, channel, debug] of [
 
 test('legacy scheduler caller resolves timeline rather than a nonexistent scheduler branch', () => {
   assert.equal(
-    resolveWebApp(catalog(), { app: 'test-app', caller: '-scheduler' }).git_ref,
+    resolveWebApp(catalog(), {
+      app: 'test-app',
+      caller: '-scheduler',
+      callerRepository: 'example/apps'
+    }).git_ref,
     'timeline'
   )
 })
@@ -597,7 +605,11 @@ for (const path of [
     for (const app of ['test-app', 'academy']) {
       assert.deepEqual(
         JSON.parse(
-          resolveWebApp(config, { app, caller: 'timeline' }).promotion_path
+          resolveWebApp(config, {
+            app,
+            caller: 'timeline',
+            callerRepository: 'example/apps'
+          }).promotion_path
         ),
         path
       )
@@ -758,4 +770,95 @@ test('different apps discover their own target sets, including an explicit defau
       .credential_secret,
     'DEFAULT_KEY'
   )
+})
+
+test('the same app ID deploys TVA from each calling repository using the existing app profile', () => {
+  const config = catalog(),
+    before = structuredClone(config)
+  for (const repository of ['example/apps', 'example-lab/fork-b']) {
+    const app = resolveWebApp(config, {
+      app: 'test-app',
+      caller: 'timeline',
+      callerRepository: repository
+    })
+    assert.equal(app.repository, repository)
+    assert.equal(app.path, 'apps/test-app')
+    assert.equal(app.git_ref, 'timeline')
+    assert.equal(app.track_environment, 'tva')
+    assert.equal(app.credential_secret, 'TEST_TVA_GCP_SA_KEY')
+    assert.equal(app.build_environment, 'dev')
+  }
+  assert.deepEqual(config, before)
+})
+for (const callerRepository of [
+  '',
+  'missing-owner',
+  'https://github.com/example/fork',
+  '../example/fork',
+  'example/fork\nnext'
+])
+  test(
+    'TVA rejects missing or malformed calling repository: ' +
+      JSON.stringify(callerRepository),
+    () => {
+      assert.throws(
+        () =>
+          resolveWebApp(catalog(), {
+            app: 'test-app',
+            caller: 'timeline',
+            callerRepository
+          }),
+        /calling repository/
+      )
+    }
+  )
+test('a caller repository cannot redirect a manual promotion', () => {
+  assert.throws(
+    () =>
+      resolveWebApp(catalog(), {
+        app: 'test-app',
+        environment: 'dev',
+        callerRepository: 'example-lab/fork-b'
+      }),
+    /only used for TVA/
+  )
+  assert.equal(
+    resolveWebApp(catalog(), { app: 'test-app', environment: 'production' })
+      .repository,
+    'example/apps'
+  )
+})
+test('registry action forwards the TVA repository context to checkout and source tracking', async () => {
+  const outputs = {}
+  await main({
+    env: {
+      CONFIG_REPO: 'example/deployer',
+      CONFIG_REF: 'timeline',
+      CONFIG_PATH: '.github/config/web-apps.yaml',
+      APP: 'test-app',
+      CALLER: 'timeline',
+      CALLER_REPO: 'example-lab/fork-b'
+    },
+    github: {
+      rest: {
+        repos: {
+          getContent: async () => ({
+            data: {
+              type: 'file',
+              encoding: 'base64',
+              content: Buffer.from(yaml.dump(catalog())).toString('base64')
+            }
+          })
+        }
+      }
+    },
+    core: {
+      setOutput: (key, value) => {
+        outputs[key] = value
+      }
+    }
+  })
+  assert.equal(outputs.repository, 'example-lab/fork-b')
+  assert.equal(outputs.git_ref, 'timeline')
+  assert.equal(outputs.credential_secret, 'TEST_TVA_GCP_SA_KEY')
 })

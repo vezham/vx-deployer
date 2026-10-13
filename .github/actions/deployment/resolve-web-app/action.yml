@@ -34,7 +34,7 @@ outputs:
     description: Application ID
     value: ${{ steps.resolve.outputs.app }}
   repository:
-    description: Source repository
+    description: TVA caller repository or configured promotion repository
     value: ${{ steps.resolve.outputs.repository }}
   path:
     description: App path relative to source repository
@@ -108,6 +108,7 @@ runs:
         CALLER: ${{ inputs.CALLER }}
         APP_ENV: ${{ inputs.APP_ENV }}
         PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        CALLER_REPO: ${{ inputs.CALLER != '' && github.repository || '' }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

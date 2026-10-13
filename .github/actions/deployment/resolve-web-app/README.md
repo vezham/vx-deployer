@@ -70,3 +70,15 @@ The resolver merges `values` and `secret_values` from defaults,
 app, default environment, app environment and target, in that order. It outputs public
 values and secret names, never secret contents. `deployments` contains `{app, target}`
 pairs for category scheduling. See the controller registry README for configuration.
+
+## TVA caller repository
+
+For automatic TVA builds, this action derives the source repository from the caller's
+`github.repository` context. The caller still passes only `APP` and `CALLER`.
+Forks can reuse an app ID and TVA profile; each build checks out its own repository
+and records statuses and comments there. Each calling repository supplies its own
+Actions secrets under the configured credential and build-secret names.
+
+The registry `repository` continues to select the source for manual promotions
+and scheduled Production rebuilds. TVA caller identity cannot redirect a promotion.
+The allowed TVA branches and app paths are unchanged.
