@@ -2,6 +2,12 @@ name: Setup Node.js and pnpm
 description: Sets up Node.js and pnpm with caching
 
 inputs:
+  APP_PATH:
+    description: Source app path; select Node from the app package.json or workspace root package.json
+    required: false
+  NODE_VERSION:
+    description: Node version override; existing callers retain their matrix version or Node 22
+    required: false
   HEROUI_AUTH_TOKEN:
     required: false
     type: string
@@ -9,6 +15,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: setup | resolve source Node version file
+      id: runtime
+      if: ${{ inputs.APP_PATH != '' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        SOURCE_APP_PATH: ${{ inputs.APP_PATH }}
+        RUNTIME_RESOLVER: ${{ github.action_path }}/bin/runtime.cjs
+      run: node "$RUNTIME_RESOLVER"
+
     - name: setup | pnpm
       uses: pnpm/action-setup@v4
       with:
@@ -17,7 +33,8 @@ runs:
     - name: setup | node env
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version || 22 }}
+        node-version: ${{ inputs.APP_PATH == '' && (inputs.NODE_VERSION || matrix.node-version || 22) || '' }}
+        node-version-file: ${{ steps.runtime.outputs.node_version_file }}
         cache: 'pnpm'
         cache-dependency-path: '**/pnpm-lock.yaml'
 

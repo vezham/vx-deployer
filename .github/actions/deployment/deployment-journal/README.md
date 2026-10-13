@@ -17,10 +17,10 @@ issues. The reader also includes history from any duplicates.
 
 ## Integration
 
-`static-cdn.helper.yml` captures the deployment result immediately after the
+`vx-deployer/.github/workflows/web-app.yml` captures the deployment result immediately after the
 Firebase action, before tracker and journal writes. It journals only promotion
 runs initiated in `vezham/vx-fe-deployer`, using its built-in `github.token`.
-The manual dispatcher and reusable promotion workflow grant `issues: write`.
+The manual dispatcher and category scheduler grant `issues: write`.
 No additional GitHub App permissions or source-repository credentials are
 needed for the journal.
 
@@ -59,7 +59,7 @@ production scheduler.
 ## Scheduled production rebuilds
 
 `vx-fe-deployer/.github/workflows/-schedule-daily-build.cdns.yml` calls the
-static CDN promotion workflow with `APP_ENV: production` and
+shared web app workflow for each enabled CDN registry entry, with `APP_ENV: production` and
 `USE_LATEST_PRODUCTION: true`. SHA selection occurs inside the same
 production concurrency group used by manual promotions, so a queued schedule
 reads the current journal after the preceding deployment finishes.

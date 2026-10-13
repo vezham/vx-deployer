@@ -1,0 +1,111 @@
+name: Prepare web deployment source
+description: Select a TVA branch or validate a manual or journal-based promotion SHA
+
+inputs:
+  APP_NAME:
+    description: App ID used by source tracking and the journal
+    required: true
+  GIT_REPO:
+    description: App source repository
+    required: true
+  TRACK_ENV:
+    description: TVA or promotion destination environment
+    required: true
+  GIT_REF:
+    description: Source branch for TVA only
+  GIT_SHA:
+    description: Full source SHA for manual promotions
+  USE_LATEST_PRODUCTION:
+    description: Resolve the latest successful Production SHA from the journal
+    default: 'false'
+  JOURNAL_REPO:
+    description: Repository containing the deployment journal
+    required: true
+  APP_CLIENT_ID:
+    description: GitHub App client ID for cross-repository source access
+  APP_PRIVATE_KEY:
+    description: GitHub App private key for cross-repository source access
+  GITHUB_TOKEN:
+    description: Caller token for the deployment journal and local source access
+    default: ${{ github.token }}
+
+outputs:
+  git_ref:
+    description: TVA branch or validated promotion SHA; empty when no Production history exists
+    value: ${{ steps.commit.outputs.sha || steps.plan.outputs.git_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate source selection
+      id: plan
+      uses: actions/github-script@v7
+      env:
+        SOURCE_PLAN_PATH: ${{ github.action_path }}/bin/main.cjs
+        TRACK_ENV: ${{ inputs.TRACK_ENV }}
+        SOURCE_REF: ${{ inputs.GIT_REF }}
+        SOURCE_SHA: ${{ inputs.GIT_SHA }}
+        USE_LATEST_PRODUCTION: ${{ inputs.USE_LATEST_PRODUCTION }}
+      with:
+        script: |
+          const { resolveSource } = require(process.env.SOURCE_PLAN_PATH);
+          const plan = resolveSource({
+            environment: process.env.TRACK_ENV,
+            ref: process.env.SOURCE_REF,
+            sha: process.env.SOURCE_SHA,
+            latest: process.env.USE_LATEST_PRODUCTION
+          });
+          for (const [name, value] of Object.entries(plan)) core.setOutput(name, value);
+
+    - name: Read latest production deployment
+      id: production
+      if: ${{ inputs.USE_LATEST_PRODUCTION == 'true' }}
+      uses: vezham/vx-deployer/.github/actions/deployment/read-deployment-journal@timeline
+      with:
+        JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+        GIT_REPO: ${{ inputs.GIT_REPO }}
+        APP_NAME: ${{ inputs.APP_NAME }}
+        APP_ENV: production
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+
+    - name: Summarize scheduled source selection
+      if: ${{ inputs.USE_LATEST_PRODUCTION == 'true' }}
+      uses: actions/github-script@v7
+      env:
+        APP_NAME: ${{ inputs.APP_NAME }}
+        PRODUCTION_FOUND: ${{ steps.production.outputs.found }}
+        SOURCE_SHA: ${{ steps.production.outputs.sha }}
+        JOURNAL_URL: ${{ steps.production.outputs.issue_url }}
+        ENTRY_URL: ${{ steps.production.outputs.entry_url }}
+      with:
+        script: |
+          core.summary.addHeading(`Scheduled production rebuild | ${process.env.APP_NAME}`);
+          if (process.env.PRODUCTION_FOUND === 'true') {
+            core.summary.addRaw(`Rebuilding the latest successful Production SHA: \`${process.env.SOURCE_SHA}\`\n`);
+            core.summary.addLink('Successful deployment entry', process.env.ENTRY_URL);
+          } else {
+            core.summary.addRaw('Skipped: no successful Production deployment is recorded.\n');
+          }
+          if (process.env.JOURNAL_URL) core.summary.addLink('Deployment journal', process.env.JOURNAL_URL);
+          await core.summary.write();
+
+    - name: Authenticate promotion source repository
+      id: source-auth
+      if: ${{ steps.plan.outputs.needs_validation == 'true' && (inputs.USE_LATEST_PRODUCTION != 'true' || steps.production.outputs.found == 'true') }}
+      uses: vezham/vx-deployer/.github/actions/common/setup-source-auth@timeline
+      with:
+        GIT_REPO: ${{ inputs.GIT_REPO }}
+        APP_CLIENT_ID: ${{ inputs.APP_CLIENT_ID }}
+        APP_PRIVATE_KEY: ${{ inputs.APP_PRIVATE_KEY }}
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+
+    - name: Validate promotion order
+      id: commit
+      if: ${{ steps.plan.outputs.needs_validation == 'true' && (inputs.USE_LATEST_PRODUCTION != 'true' || steps.production.outputs.found == 'true') }}
+      uses: vezham/vx-deployer/.github/actions/deployment/validate-promotion@timeline
+      with:
+        GIT_REPO: ${{ inputs.GIT_REPO }}
+        GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
+        GIT_SHA: ${{ inputs.USE_LATEST_PRODUCTION == 'true' && steps.production.outputs.sha || inputs.GIT_SHA }}
+        APP_ENV: ${{ inputs.TRACK_ENV }}
+        APP_NAME: ${{ inputs.APP_NAME }}

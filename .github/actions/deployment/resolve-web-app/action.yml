@@ -1,0 +1,89 @@
+name: Resolve web app settings
+description: Read app settings or discover category apps from a versioned deployment registry
+
+inputs:
+  CONFIG_REPO:
+    description: Repository containing the registry
+    required: true
+  CONFIG_REF:
+    description: Commit SHA or branch containing the registry
+    required: true
+  CONFIG_PATH:
+    description: Registry YAML path
+    default: .github/config/web-apps.yaml
+  APP:
+    description: App ID; provide APP or CATEGORY
+  CATEGORY:
+    description: Category to list for scheduled rebuilds
+  CALLER:
+    description: Source branch for automatic TVA builds
+  APP_ENV:
+    description: Promotion destination
+  GITHUB_TOKEN:
+    description: Token used to read the registry
+    default: ${{ github.token }}
+
+outputs:
+  apps:
+    description: JSON array of enabled category app IDs
+    value: ${{ steps.resolve.outputs.apps }}
+  app:
+    description: Application ID
+    value: ${{ steps.resolve.outputs.app }}
+  repository:
+    description: Source repository
+    value: ${{ steps.resolve.outputs.repository }}
+  path:
+    description: App path relative to source repository
+    value: ${{ steps.resolve.outputs.path }}
+  track_environment:
+    description: Environment used for source tracking and the journal
+    value: ${{ steps.resolve.outputs.track_environment }}
+  build_environment:
+    description: Build-time V_APP_ENV
+    value: ${{ steps.resolve.outputs.build_environment }}
+  release_channel:
+    description: Build-time V_RELEASE_CHANNEL
+    value: ${{ steps.resolve.outputs.release_channel }}
+  debug:
+    description: Build-time V_IS_DEBUG boolean string
+    value: ${{ steps.resolve.outputs.debug }}
+  credential_secret:
+    description: Name of the destination credential secret, never its value
+    value: ${{ steps.resolve.outputs.credential_secret }}
+  git_ref:
+    description: TVA source branch; promotions resolve a SHA separately
+    value: ${{ steps.resolve.outputs.git_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup resolver pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        package_json_file: ${{ github.action_path }}/package.json
+        run_install: false
+
+    - name: Install resolver dependencies
+      shell: bash
+      env:
+        RESOLVER_SETUP: ${{ github.action_path }}/bin/setup.sh
+      run: bash "$RESOLVER_SETUP"
+
+    - name: Read web app registry
+      id: resolve
+      uses: actions/github-script@v7
+      env:
+        RESOLVER_PATH: ${{ github.action_path }}/bin/main.cjs
+        CONFIG_REPO: ${{ inputs.CONFIG_REPO }}
+        CONFIG_REF: ${{ inputs.CONFIG_REF }}
+        CONFIG_PATH: ${{ inputs.CONFIG_PATH }}
+        APP: ${{ inputs.APP }}
+        CATEGORY: ${{ inputs.CATEGORY }}
+        CALLER: ${{ inputs.CALLER }}
+        APP_ENV: ${{ inputs.APP_ENV }}
+      with:
+        github-token: ${{ inputs.GITHUB_TOKEN }}
+        script: |
+          const { main } = require(process.env.RESOLVER_PATH);
+          await main({ github, core });

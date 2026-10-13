@@ -1,0 +1,169 @@
+name: web-app | build and deploy
+
+on:
+  workflow_call:
+    secrets:
+      SOURCE_APP_PRIVATE_KEY:
+        required: false
+      GCP_SA_KEY:
+        required: true
+      HEROUI_AUTH_TOKEN:
+        required: true
+    inputs:
+      APP_NAME:
+        required: true
+        type: string
+      GIT_REPO:
+        required: true
+        type: string
+      APP_PATH:
+        required: true
+        type: string
+      GIT_REF:
+        required: true
+        type: string
+      TRACK_ENV:
+        description: Source tracker environment (tva, dev, qa, preview or production)
+        required: true
+        type: string
+      APP_ENV:
+        description: Build-time environment
+        required: true
+        type: string
+      RELEASE_CHANNEL:
+        required: true
+        type: string
+      IS_DEBUG:
+        required: true
+        type: boolean
+      JOURNAL_REPO:
+        required: true
+        type: string
+
+# Permissions come from the entrypoint: TVA does not need issues: write.
+env:
+  REPO: ${{ inputs.GIT_REPO }}
+  BRANCH: ${{ inputs.GIT_REF }}
+  ENTRY_POINT: ./${{ inputs.APP_PATH }}
+  VX_APP_PATH: ${{ inputs.APP_PATH }}
+  VX_APP_NAME: ${{ inputs.APP_NAME }}
+  DEPLOYMENT_JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+
+jobs:
+  bnd:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.ENTRY_POINT }}
+
+    steps:
+      - name: Validate deployment settings
+        uses: vezham/vx-deployer/.github/actions/deployment/validate@timeline
+        with:
+          APP_ENV: ${{ inputs.APP_ENV }}
+          RELEASE_CHANNEL: ${{ inputs.RELEASE_CHANNEL }}
+
+      - name: action | authenticate source repository
+        id: source-auth
+        uses: vezham/vx-deployer/.github/actions/common/setup-source-auth@timeline
+        with:
+          GIT_REPO: ${{ env.REPO }}
+          APP_CLIENT_ID: ${{ vars.SOURCE_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.SOURCE_APP_PRIVATE_KEY }}
+
+      - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+        uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
+        with:
+          GIT_REPO: ${{ env.REPO }}
+          GIT_BRANCH: ${{ env.BRANCH }}
+          GIT_TOKEN: ${{ steps.source-auth.outputs.token }}
+
+      - name: Resolve deployed source SHA
+        id: source
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: action | track deployment started
+        continue-on-error: true
+        uses: vezham/vx-deployer/.github/actions/deployment/comment-promotion@timeline
+        with:
+          GIT_REPO: ${{ env.REPO }}
+          GIT_SHA: ${{ steps.source.outputs.sha }}
+          APP_NAME: ${{ env.VX_APP_NAME }}
+          APP_ENV: ${{ inputs.TRACK_ENV }}
+          STATUS: in_progress
+          GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
+
+      - name: action | gen $DX_APP_URL
+        uses: vezham/vx-deployer/.github/actions/common/gen-dx-app-url@timeline
+
+      - name: setup | .env vars
+        uses: SpicyPizza/create-envfile@v1.3
+        with:
+          directory: ${{ env.ENTRY_POINT }}
+          envkey_V_APP_NAME: ${{ inputs.APP_NAME }}
+          envkey_V_APP_ENV: ${{ inputs.APP_ENV }}
+          envkey_V_RELEASE_CHANNEL: ${{ inputs.RELEASE_CHANNEL }}
+          envkey_V_IS_DEBUG: ${{ inputs.IS_DEBUG }}
+
+      - name: 🟠 · 🧩 Setup Node & pnpm
+        uses: vezham/vx-deployer/.github/actions/common/setup-install@timeline
+        with:
+          APP_PATH: ${{ inputs.APP_PATH }}
+          HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
+
+      - name: action | gen-build
+        uses: vezham/vx-deployer/.github/actions/nx/gen-build@timeline
+
+      - name: action | ci-setup | firebase
+        id: deployment
+        uses: vezham/vx-deployer/.github/actions/cloud-providers/firebase@timeline
+        with:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          COMMENT_DEPLOYMENT: 'false'
+
+      - name: Capture deployment result
+        id: result
+        if: ${{ always() && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          DEPLOYMENT_STATUS: ${{ job.status }}
+        run: |
+          echo "status=$DEPLOYMENT_STATUS" >> "$GITHUB_OUTPUT"
+          echo "finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: action | track deployment result
+        if: ${{ always() && steps.source-auth.outputs.token != '' && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
+        continue-on-error: true
+        uses: vezham/vx-deployer/.github/actions/deployment/comment-promotion@timeline
+        with:
+          GIT_REPO: ${{ env.REPO }}
+          GIT_SHA: ${{ steps.source.outputs.sha || inputs.GIT_REF }}
+          APP_NAME: ${{ env.VX_APP_NAME }}
+          APP_ENV: ${{ inputs.TRACK_ENV }}
+          STATUS: ${{ steps.result.outputs.status }}
+          PREVIEW_URL: ${{ steps.deployment.outputs.preview_url }}
+          PREVIEW_EXPIRES_AT: ${{ steps.deployment.outputs.preview_expires_at }}
+          LIVE_URL: ${{ steps.deployment.outputs.live_url }}
+          GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
+
+      - name: action | append deployment journal
+        if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == env.DEPLOYMENT_JOURNAL_REPO && steps.result.outputs.status != '' }}
+        uses: vezham/vx-deployer/.github/actions/deployment/deployment-journal@timeline
+        with:
+          JOURNAL_REPO: ${{ env.DEPLOYMENT_JOURNAL_REPO }}
+          GIT_REPO: ${{ env.REPO }}
+          GIT_SHA: ${{ steps.source.outputs.sha || inputs.GIT_REF }}
+          APP_NAME: ${{ env.VX_APP_NAME }}
+          APP_ENV: ${{ inputs.TRACK_ENV }}
+          STATUS: ${{ steps.result.outputs.status }}
+          STARTED_AT: ${{ steps.source.outputs.started_at }}
+          FINISHED_AT: ${{ steps.result.outputs.finished_at }}
+          PREVIEW_URL: ${{ steps.deployment.outputs.preview_url }}
+          PREVIEW_EXPIRES_AT: ${{ steps.deployment.outputs.preview_expires_at }}
+          LIVE_URL: ${{ steps.deployment.outputs.live_url }}
+          GITHUB_TOKEN: ${{ github.token }}
