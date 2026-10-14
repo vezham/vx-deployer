@@ -186,6 +186,26 @@ const resolveWebApp = (
   }
 }
 
+const planPromotionTargets = (
+  catalog,
+  { app, environment, productionTarget = '' }
+) => {
+  const apps = getCatalogApps(catalog)
+  if (typeof app !== 'string' || !Object.hasOwn(apps, app))
+    throw new Error(`Unknown web app: ${app}`)
+  const selected = normalizeProductionTarget(productionTarget, environment)
+  const targets =
+    environment === 'production' && productionTarget === ''
+      ? getProductionTargets(apps[app])
+      : [selected]
+  if (targets.length > 256)
+    throw new Error('Promotion targets exceed the 256-job matrix limit')
+  // vx-bot/NOTE: Validate every target before publishing; workers still enforce SHA and promotion order.
+  for (const target of targets)
+    resolveWebApp(catalog, { app, environment, productionTarget: target })
+  return targets
+}
+
 const listWebApps = (catalog, category = '') => {
   const apps = getCatalogApps(catalog)
   if (
@@ -252,6 +272,16 @@ const main = async ({ github, core, env = process.env }) => {
     throw new Error('SCHEDULED_ONLY must be true or false')
   if (scheduledOnly === 'true' && env.APP)
     throw new Error('SCHEDULED_ONLY requires discovery, not APP')
+  const expandPromotionTargets = env.EXPAND_PROMOTION_TARGETS || 'false'
+  if (!['true', 'false'].includes(expandPromotionTargets))
+    throw new Error('EXPAND_PROMOTION_TARGETS must be true or false')
+  if (
+    expandPromotionTargets === 'true' &&
+    (!env.APP || env.CALLER || scheduledOnly === 'true')
+  )
+    throw new Error(
+      'EXPAND_PROMOTION_TARGETS requires APP promotion discovery without CALLER or SCHEDULED_ONLY'
+    )
   const [owner, repo] = repository.split('/')
   const { data } = await github.rest.repos.getContent({
     owner,
@@ -269,6 +299,15 @@ const main = async ({ github, core, env = process.env }) => {
   const catalog = parseCatalog(
     Buffer.from(data.content, 'base64').toString('utf8')
   )
+  if (expandPromotionTargets === 'true') {
+    const targets = planPromotionTargets(catalog, {
+      app: env.APP,
+      environment: env.APP_ENV,
+      productionTarget: env.PRODUCTION_TARGET || ''
+    })
+    core.setOutput('promotion_targets', JSON.stringify(targets))
+    return
+  }
   if (env.CATEGORY || allApps === 'true') {
     let deployments = listProductionDeployments(catalog, env.CATEGORY || '')
     if (scheduledOnly === 'true') {
@@ -321,5 +360,6 @@ module.exports = {
   resolveWebApp,
   listWebApps,
   listProductionDeployments,
+  planPromotionTargets,
   main
 }

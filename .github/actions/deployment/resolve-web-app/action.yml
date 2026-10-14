@@ -33,6 +33,9 @@ inputs:
   SCHEDULED_ONLY:
     description: Filter discovery by app schedules on the workflow run creation date in IST
     default: 'false'
+  EXPAND_PROMOTION_TARGETS:
+    description: Plan one promotion target, or all configured Production targets when none is specified
+    default: 'false'
 outputs:
   apps:
     description: JSON array of enabled app IDs in the selected discovery scope
@@ -85,6 +88,9 @@ outputs:
   category:
     description: Registry category derived from the app group
     value: ${{ steps.resolve.outputs.category }}
+  promotion_targets:
+    description: JSON array of validated targets for manual promotion; non-Production uses an empty target
+    value: ${{ steps.resolve.outputs.promotion_targets }}
 runs:
   using: composite
   steps:
@@ -121,6 +127,7 @@ runs:
         ALL_APPS: ${{ inputs.ALL_APPS }}
         JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
         SCHEDULED_ONLY: ${{ inputs.SCHEDULED_ONLY }}
+        EXPAND_PROMOTION_TARGETS: ${{ inputs.EXPAND_PROMOTION_TARGETS }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

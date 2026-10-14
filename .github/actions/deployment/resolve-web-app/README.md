@@ -119,3 +119,20 @@ same original run date. Filtering happens before journal lookup and batch creati
 all Production targets of a due app are included. Monthly dates missing from a
 month are skipped. There is no missed-run catch-up. Without `SCHEDULED_ONLY`, app
 resolution and unfiltered registry discovery keep their existing behavior.
+
+## Manual promotion target planning
+
+With `APP`, `APP_ENV` and `EXPAND_PROMOTION_TARGETS: 'true'`, the action emits
+`promotion_targets`, a JSON array for the manual dispatcher matrix. Empty
+`PRODUCTION_TARGET` in Production selects every configured target, including an
+explicit `default` when present; an app without a target map selects `default` once.
+An explicit target selects only that destination. Non-Production selects one empty
+target and rejects region inputs.
+
+All selected profiles validate before outputs are emitted. Planning rejects unknown
+or disabled apps, invalid/missing target settings, skipped promotion stages and more
+than 256 targets. It does not perform schedule filtering or bypass promotion-source
+validation. The per-target deployment workflow still verifies the SHA and prerequisite
+stage before building. Ordinary single-app resolution remains strict and expects a
+specific target for named-only Production maps; the dispatcher passes those resolved
+targets explicitly. Do not combine expansion with TVA `CALLER` or scheduled discovery.

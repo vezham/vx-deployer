@@ -3,6 +3,7 @@ const { test } = require('node:test')
 const {
   parseCatalog,
   getCatalogApps,
+  planPromotionTargets,
   resolveWebApp,
   listWebApps,
   main
@@ -1088,3 +1089,174 @@ test('resolved app category comes from its registry group for monthly history', 
     'cdns'
   )
 })
+
+const regionalPromotionCatalog = () => {
+  const config = catalog()
+  config['apps-cdns']['test-app'].production_targets = {
+    us: { credential_secret: 'US_KEY' },
+    eu: { credential_secret: 'EU_KEY' },
+    in: { credential_secret: 'IN_KEY' }
+  }
+  return config
+}
+test('empty manual Production selection expands all app targets while single Production stays default', () => {
+  assert.deepEqual(
+    planPromotionTargets(regionalPromotionCatalog(), {
+      app: 'test-app',
+      environment: 'production'
+    }),
+    ['eu', 'in', 'us']
+  )
+  assert.deepEqual(
+    planPromotionTargets(catalog(), {
+      app: 'test-app',
+      environment: 'production'
+    }),
+    ['default']
+  )
+  const config = regionalPromotionCatalog()
+  config['apps-cdns']['test-app'].production_targets.default = {
+    credential_secret: 'DEFAULT_KEY'
+  }
+  assert.deepEqual(
+    planPromotionTargets(config, {
+      app: 'test-app',
+      environment: 'production'
+    }),
+    ['default', 'eu', 'in', 'us']
+  )
+})
+test('explicit manual target selects only that destination and preserves its credentials and configuration', () => {
+  const config = regionalPromotionCatalog()
+  config['apps-cdns']['test-app'].production_targets.eu.values = {
+    V_API_URL: 'https://eu.example.com'
+  }
+  assert.deepEqual(
+    planPromotionTargets(config, {
+      app: 'test-app',
+      environment: 'production',
+      productionTarget: 'eu'
+    }),
+    ['eu']
+  )
+  const resolved = resolveWebApp(config, {
+    app: 'test-app',
+    environment: 'production',
+    productionTarget: 'eu'
+  })
+  assert.equal(resolved.credential_secret, 'EU_KEY')
+  assert.equal(JSON.parse(resolved.values).V_API_URL, 'https://eu.example.com')
+})
+test('non-Production promotion remains one untargeted deployment and rejects region inputs', () => {
+  for (const environment of ['dev', 'qa', 'preview']) {
+    assert.deepEqual(
+      planPromotionTargets(regionalPromotionCatalog(), {
+        app: 'test-app',
+        environment
+      }),
+      ['']
+    )
+    assert.throws(
+      () =>
+        planPromotionTargets(regionalPromotionCatalog(), {
+          app: 'test-app',
+          environment,
+          productionTarget: 'us'
+        }),
+      /only valid/
+    )
+  }
+})
+test('unknown targets, apps, disabled apps and unavailable promotion stages fail target planning', () => {
+  assert.throws(
+    () =>
+      planPromotionTargets(regionalPromotionCatalog(), {
+        app: 'test-app',
+        environment: 'production',
+        productionTarget: 'au'
+      }),
+    /Unknown Production target/
+  )
+  assert.throws(
+    () =>
+      planPromotionTargets(catalog(), {
+        app: 'missing',
+        environment: 'production'
+      }),
+    /Unknown web app/
+  )
+  const config = catalog()
+  config['apps-cdns']['test-app'].enabled = false
+  assert.throws(
+    () =>
+      planPromotionTargets(config, {
+        app: 'test-app',
+        environment: 'production'
+      }),
+    /disabled/
+  )
+  config['apps-cdns']['test-app'].enabled = true
+  config['apps-cdns']['test-app'].promotion_path = ['tva', 'production']
+  assert.throws(
+    () => planPromotionTargets(config, { app: 'test-app', environment: 'qa' }),
+    /promotion_path/
+  )
+})
+test('every regional profile validates before any promotion matrix is published', async () => {
+  const config = regionalPromotionCatalog()
+  config['apps-cdns']['test-app'].production_targets.us.debug = 'false'
+  const input = discoveryApi(config, {
+    APP: 'test-app',
+    APP_ENV: 'production',
+    EXPAND_PROMOTION_TARGETS: 'true'
+  })
+  await assert.rejects(main(input), /build settings/)
+  assert.deepEqual(input.outputs, {})
+})
+test('promotion target expansion respects the matrix capacity', () => {
+  const config = catalog()
+  config['apps-cdns']['test-app'].production_targets = Object.fromEntries(
+    Array.from({ length: 257 }, (_, i) => [
+      'dc-' + i,
+      { credential_secret: 'REGION_KEY' }
+    ])
+  )
+  assert.throws(
+    () =>
+      planPromotionTargets(config, {
+        app: 'test-app',
+        environment: 'production'
+      }),
+    /256-job/
+  )
+})
+test('manual promotion discovery emits only validated target IDs from the pinned registry', async () => {
+  const input = discoveryApi(regionalPromotionCatalog(), {
+    APP: 'test-app',
+    APP_ENV: 'production',
+    EXPAND_PROMOTION_TARGETS: 'true'
+  })
+  await main(input)
+  assert.deepEqual(input.outputs, { promotion_targets: '["eu","in","us"]' })
+  assert.equal(input.requests.length, 1)
+  assert.equal(input.requests[0].ref, 'b'.repeat(40))
+})
+for (const request of [
+  { APP: 'test-app', APP_ENV: 'production', EXPAND_PROMOTION_TARGETS: 'yes' },
+  {
+    APP: 'test-app',
+    APP_ENV: 'production',
+    CALLER: 'timeline',
+    EXPAND_PROMOTION_TARGETS: 'true'
+  },
+  { CATEGORY: 'cdns', EXPAND_PROMOTION_TARGETS: 'true' }
+])
+  test(
+    'invalid promotion discovery mode fails before registry access: ' +
+      JSON.stringify(request),
+    async () => {
+      const input = discoveryApi(catalog(), request)
+      await assert.rejects(main(input), /EXPAND_PROMOTION_TARGETS/)
+      assert.deepEqual(input.requests, [])
+    }
+  )
