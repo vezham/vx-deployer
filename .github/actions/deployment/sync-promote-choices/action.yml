@@ -1,5 +1,5 @@
 name: 🧭 Sync promotion choices
-description: Generate or check a promotion dropdown from the checked-out web app registry
+description: Generate or check promotion app choices filtered by category
 
 inputs:
   REGISTRY_PATH:
@@ -11,6 +11,15 @@ inputs:
   MODE:
     description: Check for drift or write generated choices (check or write)
     default: check
+  CATEGORY:
+    description: Category filter for one entry workflow; empty lists all categories
+    default: ''
+  ALL_CATEGORIES:
+    description: Check or regenerate every category promotion entry workflow
+    default: 'false'
+  WORKFLOW_DIRECTORY:
+    description: Directory containing category promotion entry workflows
+    default: .github/workflows
 
 runs:
   using: composite
@@ -42,4 +51,7 @@ runs:
         REGISTRY_PATH: ${{ inputs.REGISTRY_PATH }}
         WORKFLOW_PATH: ${{ inputs.WORKFLOW_PATH }}
         MODE: ${{ inputs.MODE }}
+        CATEGORY: ${{ inputs.CATEGORY }}
+        ALL_CATEGORIES: ${{ inputs.ALL_CATEGORIES }}
+        WORKFLOW_DIRECTORY: ${{ inputs.WORKFLOW_DIRECTORY }}
       run: node "$CHOICES_SCRIPT"

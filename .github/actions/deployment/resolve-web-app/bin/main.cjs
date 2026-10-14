@@ -357,6 +357,7 @@ const main = async ({ github, core, env = process.env }) => {
 module.exports = {
   parseCatalog,
   getCatalogApps,
+  groups,
   resolveWebApp,
   listWebApps,
   listProductionDeployments,

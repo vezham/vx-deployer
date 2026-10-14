@@ -4,7 +4,11 @@ const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const { test } = require('node:test')
 const yaml = require('js-yaml')
-const { generateChoices, syncChoices } = require('./sync-choices.cjs')
+const {
+  generateChoices,
+  syncChoices,
+  syncCategoryChoices
+} = require('./sync-choices.cjs')
 
 const start =
   '        # vx-bot/INFO: Generated app choices from web-apps.yaml; do not edit.'
@@ -206,4 +210,130 @@ test('dropdown validates app-specific Production targets', () => {
     V_APP_NAME: 'override'
   }
   assert.throws(() => generateChoices(yaml.dump(config), workflow), /reserved/)
+})
+
+test('category choices include only matching enabled apps and preserve workflow bytes', () => {
+  const config = groupedCatalog(),
+    registry = yaml.dump(config)
+  const result = generateChoices(registry, workflow, { category: 'internals' })
+  assert.deepEqual(yaml.load(result).on.workflow_dispatch.inputs.APP.options, [
+    'a-app'
+  ])
+  assert.equal(
+    result.slice(0, result.indexOf(start)),
+    workflow.slice(0, workflow.indexOf(start))
+  )
+  assert.deepEqual(
+    yaml.load(generateChoices(registry, workflow, { category: 'cdns' })).on
+      .workflow_dispatch.inputs.APP.options,
+    ['z-app']
+  )
+  assert.throws(
+    () => generateChoices(registry, workflow, { category: 'unknown' }),
+    /Unknown promotion category/
+  )
+  assert.throws(
+    () => generateChoices(registry, workflow, { category: 'widgets' }),
+    /at least one enabled app/
+  )
+})
+const categoryWorkflow = category =>
+  workflow
+    .replace('name: Promote', 'name: Promote | ' + category)
+    .replace(
+      '      APP_ENV:',
+      '      GIT_SHA:\n        type: string\n      PRODUCTION_TARGET:\n        type: string\n      APP_ENV:'
+    )
+    .replace(
+      '    uses: ./.github/workflows/web-app.yml',
+      '    uses: ./.github/workflows/promote.yml\n    secrets: inherit\n    with:\n      APP: ${{ inputs.APP }}\n      GIT_SHA: ${{ inputs.GIT_SHA }}\n      APP_ENV: ${{ inputs.APP_ENV }}\n      PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}'
+    )
+const categoryFiles = t => {
+  const directory = mkdtempSync(join(tmpdir(), 'vx-category-choices-'))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const registryPath = join(directory, 'registry.yaml')
+  writeFileSync(registryPath, yaml.dump(groupedCatalog()))
+  for (const category of ['cdns', 'internals'])
+    writeFileSync(
+      join(directory, 'promote-' + category + '.yml'),
+      categoryWorkflow(category)
+    )
+  return { directory, registryPath, workflowDirectory: directory }
+}
+test('all-category check detects drift without writes, write updates every category and then passes', t => {
+  const f = categoryFiles(t),
+    file = join(f.directory, 'promote-cdns.yml'),
+    before = readFileSync(file, 'utf8')
+  assert.throws(() => syncCategoryChoices(f), /choices are stale/)
+  assert.equal(readFileSync(file, 'utf8'), before)
+  assert.equal(syncCategoryChoices({ ...f, mode: 'write' }), true)
+  assert.equal(syncCategoryChoices(f), false)
+  assert.deepEqual(
+    yaml.load(readFileSync(file, 'utf8')).on.workflow_dispatch.inputs.APP
+      .options,
+    ['z-app']
+  )
+  assert.deepEqual(
+    yaml.load(readFileSync(join(f.directory, 'promote-internals.yml'), 'utf8'))
+      .on.workflow_dispatch.inputs.APP.options,
+    ['a-app']
+  )
+})
+test('all-category generation refuses wrong routing before writing any dropdown', t => {
+  const f = categoryFiles(t),
+    cdns = join(f.directory, 'promote-cdns.yml'),
+    internals = join(f.directory, 'promote-internals.yml')
+  const before = readFileSync(cdns, 'utf8')
+  writeFileSync(
+    internals,
+    categoryWorkflow('internals').replace(
+      './.github/workflows/promote.yml',
+      './.github/workflows/other.yml'
+    )
+  )
+  assert.throws(
+    () => syncCategoryChoices({ ...f, mode: 'write' }),
+    /incorrect routing/
+  )
+  assert.equal(readFileSync(cdns, 'utf8'), before)
+})
+test('all-category guard detects missing category workflows and obsolete empty categories', t => {
+  const f = categoryFiles(t),
+    config = groupedCatalog()
+  config['apps-widgets'] = { chat: config['apps-cdns']['z-app'] }
+  writeFileSync(f.registryPath, yaml.dump(config))
+  assert.throws(() => syncCategoryChoices(f), /Missing: promote-widgets.yml/)
+  delete config['apps-widgets']
+  delete config['apps-internals']
+  writeFileSync(f.registryPath, yaml.dump(config))
+  assert.throws(
+    () => syncCategoryChoices(f),
+    /remove empty.*promote-internals.yml/
+  )
+})
+test('single-category write and check forward the category filter', t => {
+  const f = categoryFiles(t),
+    workflowPath = join(f.directory, 'promote-cdns.yml')
+  assert.equal(
+    syncChoices({
+      registryPath: f.registryPath,
+      workflowPath,
+      category: 'cdns',
+      mode: 'write'
+    }),
+    true
+  )
+  assert.equal(
+    syncChoices({
+      registryPath: f.registryPath,
+      workflowPath,
+      category: 'cdns'
+    }),
+    false
+  )
+  assert.deepEqual(
+    yaml.load(readFileSync(workflowPath, 'utf8')).on.workflow_dispatch.inputs
+      .APP.options,
+    ['z-app']
+  )
 })
