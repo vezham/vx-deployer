@@ -1080,3 +1080,11 @@ test('invalid default and app schedules fail catalog validation', () => {
   config['apps-cdns']['test-app'].schedule = { frequency: 'monthly', day: 32 }
   assert.throws(() => getCatalogApps(config), /Monthly/)
 })
+
+test('resolved app category comes from its registry group for monthly history', () => {
+  assert.equal(
+    resolveWebApp(catalog(), { app: 'test-app', environment: 'production' })
+      .category,
+    'cdns'
+  )
+})

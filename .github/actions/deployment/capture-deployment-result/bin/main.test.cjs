@@ -13,6 +13,7 @@ test('public result transport includes URLs and identity without credentials or 
     SOURCE_REPO: 'example/apps',
     SOURCE_SHA: 'a'.repeat(40),
     DEPLOYMENT_APP: 'demo',
+    DEPLOYMENT_CATEGORY: 'apps',
     TARGET_ENV: 'production',
     PRODUCTION_TARGET: 'us',
     DEPLOYMENT_STATUS: 'success',

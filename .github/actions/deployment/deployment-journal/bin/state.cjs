@@ -51,6 +51,14 @@ const parseState = (body, validate) => {
         }
     }
     if (state.pending && !validate(state.pending)) throw new Error()
+    if (
+      state.pending_history &&
+      (!state.pending ||
+        !Number.isSafeInteger(state.pending_history.issue_number) ||
+        state.pending_history.issue_number <= 0 ||
+        !state.pending.category)
+    )
+      throw new Error()
     return state
   } catch {
     throw new Error(

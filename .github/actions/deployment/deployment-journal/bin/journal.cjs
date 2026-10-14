@@ -1,4 +1,10 @@
 const { readFileSync } = require('node:fs')
+const {
+  validateCategory,
+  getMonthlyJournal,
+  findHistoryRecord,
+  ensureMonthlyJournal
+} = require('./monthly.cjs')
 const { respectRateLimits } = require('./api.cjs')
 const { emptyState, parseState, addEntry, stateBody } = require('./state.cjs')
 
@@ -72,6 +78,7 @@ const parseRecord = comment => {
     repositoryParts(record.source_repository)
     repositoryParts(record.workflow_repository)
     validateApp(record.app)
+    if (record.category !== undefined) validateCategory(record.category)
     timestamp(record.finished_at)
     safeUrl(record.workflow_url)
     if (
@@ -114,15 +121,14 @@ const findJournals = async ({
 const issueBody = (source, app) =>
   [
     journalMarker(source, app),
-    `Deployment history for **${app}** from **${source}**.`,
+    `Current deployment state for **${app}** from **${source}**.`,
     '',
-    'Each comment records one completed Dev, QA, Preview or Production attempt, including routine Production rebuilds.',
-    'TVA is tracked on source commits. Failed or cancelled attempts do not replace the current successful production SHA for each target.',
-    '',
-    'Entries contain structured metadata for scheduled workflows. No deployment tags are required.'
+    'This closed issue is the scheduler index. New history is recorded in monthly category journals linked from each state entry.',
+    'Older comments remain as historical records. TVA is tracked on source commits.',
+    'Failed or cancelled attempts do not replace the latest successful SHA for each environment/target.'
   ].join('\n')
 
-const renderRecord = record => {
+const renderRecord = (record, stateUrl) => {
   const labels = {
     success: '✅ Succeeded',
     failure: '❌ Failed',
@@ -130,9 +136,10 @@ const renderRecord = record => {
   }
   return [
     `${recordPrefix}${JSON.stringify(record)} -->`,
-    `### ${record.kind} | ${deploymentEnvironment(record.environment, record.production_target)} | ${record.sha.slice(0, 7)} | ${labels[record.status]}`,
+    `### ${record.app} | ${record.kind} | ${deploymentEnvironment(record.environment, record.production_target)} | ${record.sha.slice(0, 7)} | ${labels[record.status]}`,
     '',
     `**Source:** ${markdownLink(`${record.source_repository}@${record.sha.slice(0, 7)}`, record.source_url)}`,
+    `**Current state:** ${markdownLink('App state', stateUrl)}`,
     `**Started (UTC):** ${record.started_at || '—'}`,
     `**Finished (UTC):** ${record.finished_at}`,
     `**Actor:** @${record.actor}`,
@@ -192,6 +199,7 @@ const buildRecord = ({ context, env }) => {
     kind: env.IS_REBUILD === 'true' ? 'rebuild' : 'promotion',
     event_id: `${workflowRepository}/${runId}/${attempt}/${env.DEPLOYMENT_APP}/${deploymentEnvironment(env.TARGET_ENV, productionTarget)}`,
     app: env.DEPLOYMENT_APP,
+    category: validateCategory(env.DEPLOYMENT_CATEGORY),
     source_repository: source,
     sha,
     source_url: `${env.GITHUB_SERVER_URL}/${source}/commit/${sha}`,
@@ -252,7 +260,7 @@ const getJournal = async ({ github, env, create = false }) => {
   if (!journal && create) {
     const response = await github.rest.issues.create({
       ...target,
-      title: `Deployment log | ${env.DEPLOYMENT_APP}`,
+      title: `Deployment state | ${env.DEPLOYMENT_APP}`,
       body: issueBody(env.SOURCE_REPO, env.DEPLOYMENT_APP)
     })
     journals = await findJournals(parameters)
@@ -286,6 +294,8 @@ const writeState = async ({ github, target, journal, env, state }) => {
   await github.rest.issues.update({
     ...target,
     issue_number: journal.number,
+    title: `Deployment state | ${env.DEPLOYMENT_APP}`,
+    state: 'closed',
     body
   })
   journal.body = body
@@ -328,12 +338,28 @@ const loadState = async ({
         'Journal has an incomplete write; recover it under the per-app journal lock'
       )
     const record = state.pending
-    const comments = await recentComments(github, target, journal)
-    let comment = comments.find(
-      item =>
-        item.user?.type === 'Bot' &&
-        parseRecord(item)?.event_id === record.event_id
-    )
+    const history = state.pending_history
+      ? await getMonthlyJournal({
+          github,
+          target,
+          number: state.pending_history.issue_number,
+          record
+        })
+      : journal
+    let comment = state.pending_history
+      ? await findHistoryRecord({
+          github,
+          target,
+          journal: history,
+          record,
+          parseRecord,
+          recover: true
+        })
+      : (await recentComments(github, target, journal)).find(
+          item =>
+            item.user?.type === 'Bot' &&
+            parseRecord(item)?.event_id === record.event_id
+        )
     if (comment) {
       const previous = parseRecord(comment)
       if (previous.sha !== record.sha || previous.status !== record.status)
@@ -341,25 +367,20 @@ const loadState = async ({
     } else {
       const response = await github.rest.issues.createComment({
         ...target,
-        issue_number: journal.number,
-        body: renderRecord(record)
+        issue_number: history.number,
+        body: renderRecord(record, journal.html_url)
       })
       comment = response.data
     }
     addEntry(state, record, comment.html_url, comment.id)
     delete state.pending
+    delete state.pending_history
     await writeState({ github, target, journal, env, state })
   }
   return state
 }
 
-const appendDeployment = async ({
-  github,
-  context,
-  core,
-  env = process.env
-}) => {
-  respectRateLimits({ github, core })
+const readDeploymentResult = ({ context, env = process.env }) => {
   const attempt = Number(env.GITHUB_RUN_ATTEMPT)
   if (
     !Number.isSafeInteger(attempt) ||
@@ -367,6 +388,7 @@ const appendDeployment = async ({
     !['true', 'false'].includes(env.IS_REBUILD || 'false')
   )
     throw new Error('Invalid workflow attempt or rebuild mode')
+  validateCategory(env.DEPLOYMENT_CATEGORY)
   const record = env.RESULT_FILE
     ? parseRecord({
         body: `${recordPrefix}${readFileSync(env.RESULT_FILE, 'utf8').trim()} -->`
@@ -376,6 +398,7 @@ const appendDeployment = async ({
     !record ||
     record.source_repository !== env.SOURCE_REPO ||
     record.app !== env.DEPLOYMENT_APP ||
+    record.category !== env.DEPLOYMENT_CATEGORY ||
     record.environment !== env.TARGET_ENV ||
     record.production_target !==
       normalizeProductionTarget(env.PRODUCTION_TARGET || '', env.TARGET_ENV) ||
@@ -395,46 +418,87 @@ const appendDeployment = async ({
     throw new Error(
       'Deployment journal must be written from a workflow in the journal repository'
     )
+  return record
+}
+
+const prepareMonthlyJournal = async ({
+  github,
+  context,
+  core,
+  env = process.env
+}) => {
+  respectRateLimits({ github, core })
+  const record = readDeploymentResult({ context, env })
+  const journal = await ensureMonthlyJournal({
+    github,
+    target: repositoryParts(env.JOURNAL_REPO),
+    record
+  })
+  core.setOutput('issue_number', String(journal.number))
+  core.setOutput('issue_url', journal.html_url)
+}
+
+const appendDeployment = async ({
+  github,
+  context,
+  core,
+  env = process.env
+}) => {
+  respectRateLimits({ github, core })
+  const record = readDeploymentResult({ context, env })
   const data = await getJournal({ github, env, create: true })
   const { journal, journals, target } = data
   const state = await loadState({ github, env, ...data, recover: true })
+  const history = await getMonthlyJournal({
+    github,
+    target,
+    number: env.MONTHLY_ISSUE,
+    record
+  })
   const known = Object.values(state.destinations)
     .flatMap(item => [item.latest_attempt, item.latest_success])
     .find(item => item?.record.event_id === record.event_id)
-  const comments = known ? [] : await recentComments(github, target, journal)
+  const existing = known
+    ? undefined
+    : await findHistoryRecord({
+        github,
+        target,
+        journal: history,
+        record,
+        parseRecord
+      })
   let comment = known
     ? { html_url: known.entry_url, id: known.entry_id, record: known.record }
-    : comments.find(
-        item =>
-          item.user?.type === 'Bot' &&
-          parseRecord(item)?.event_id === record.event_id
-      )
+    : existing
   if (comment) {
     const previous = comment.record || parseRecord(comment)
     if (previous.sha !== record.sha || previous.status !== record.status)
       throw new Error('Conflicting journal entry for this workflow attempt')
   } else {
     state.pending = record
+    state.pending_history = { issue_number: history.number }
     // Validate the final size before appending so failures leave a recoverable intent.
     const projected = structuredClone(state)
     addEntry(
       projected,
       record,
-      `${journal.html_url}#issuecomment-999999999999`,
+      `${history.html_url}#issuecomment-999999999999`,
       999999999999
     )
     delete projected.pending
+    delete projected.pending_history
     stateBody(issueBody(env.SOURCE_REPO, env.DEPLOYMENT_APP), projected)
     await writeState({ github, target, journal, env, state })
     const response = await github.rest.issues.createComment({
       ...target,
-      issue_number: journal.number,
-      body: renderRecord(record)
+      issue_number: history.number,
+      body: renderRecord(record, journal.html_url)
     })
     comment = response.data
   }
   addEntry(state, record, comment.html_url, comment.id)
   delete state.pending
+  delete state.pending_history
   await writeState({ github, target, journal, env, state })
   for (const duplicate of journals.slice(1))
     if (duplicate.state === 'open' && duplicate.user?.type === 'Bot')
@@ -447,6 +511,7 @@ const appendDeployment = async ({
   core.setOutput('issue_number', journal.number)
   core.setOutput('issue_url', journal.html_url)
   core.setOutput('entry_url', comment.html_url)
+  core.setOutput('history_issue_url', history.html_url)
 }
 
 const readLatestDeployment = async ({ github, core, env = process.env }) => {
@@ -493,5 +558,7 @@ module.exports = {
   readLatestDeployment,
   parseRecord,
   issueBody,
-  buildRecord
+  buildRecord,
+  prepareMonthlyJournal,
+  readDeploymentResult
 }

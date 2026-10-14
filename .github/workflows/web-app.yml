@@ -1,5 +1,4 @@
 name: web-app | build and deploy
-
 on:
   workflow_call:
     secrets:
@@ -58,8 +57,10 @@ on:
         description: Routine rebuild of an already successful Production SHA
         type: boolean
         default: false
-
-# Permissions come from the entrypoint: TVA does not need issues: write.
+      CATEGORY:
+        description: Registry category for monthly history
+        required: true
+        type: string
 env:
   REPO: ${{ inputs.GIT_REPO }}
   BRANCH: ${{ inputs.GIT_REF }}
@@ -68,14 +69,12 @@ env:
   VX_APP_NAME: ${{ inputs.APP_NAME }}
   DEPLOYMENT_JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
   NX_NO_CLOUD: 'true'
-
 jobs:
   bnd:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ${{ env.ENTRY_POINT }}
-
     steps:
       - name: Validate rebuild mode
         uses: actions/github-script@v7
@@ -91,7 +90,6 @@ jobs:
         with:
           APP_ENV: ${{ inputs.APP_ENV }}
           RELEASE_CHANNEL: ${{ inputs.RELEASE_CHANNEL }}
-
       - name: action | authenticate source repository
         id: source-auth
         uses: vezham/vx-deployer/.github/actions/common/setup-source-auth@timeline
@@ -99,14 +97,12 @@ jobs:
           GIT_REPO: ${{ env.REPO }}
           APP_CLIENT_ID: ${{ vars.SOURCE_APP_CLIENT_ID }}
           APP_PRIVATE_KEY: ${{ secrets.SOURCE_APP_PRIVATE_KEY }}
-
       - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
         uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
           GIT_TOKEN: ${{ steps.source-auth.outputs.token }}
-
       - name: Resolve deployed source SHA
         id: source
         shell: bash
@@ -114,7 +110,6 @@ jobs:
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-
       - name: action | track deployment started
         continue-on-error: true
         uses: vezham/vx-deployer/.github/actions/deployment/comment-promotion@timeline
@@ -141,23 +136,19 @@ jobs:
           BUILD_VALUES: ${{ inputs.BUILD_VALUES }}
           BUILD_SECRET_VALUES: ${{ inputs.BUILD_SECRET_VALUES }}
           AVAILABLE_SECRETS: ${{ secrets.BUILD_SECRETS || '{}' }}
-
       - name: 🟠 · 🧩 Setup Node & pnpm
         uses: vezham/vx-deployer/.github/actions/common/setup-install@timeline
         with:
           APP_PATH: ${{ inputs.APP_PATH }}
           HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
-
       - name: action | gen-build
         uses: vezham/vx-deployer/.github/actions/nx/gen-build@timeline
-
       - name: action | ci-setup | firebase
         id: deployment
         uses: vezham/vx-deployer/.github/actions/cloud-providers/firebase@timeline
         with:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           COMMENT_DEPLOYMENT: 'false'
-
       - name: Capture deployment result
         id: result
         if: ${{ always() && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
@@ -168,7 +159,6 @@ jobs:
         run: |
           echo "status=$DEPLOYMENT_STATUS" >> "$GITHUB_OUTPUT"
           echo "finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-
       - name: action | track deployment result
         if: ${{ always() && !inputs.IS_REBUILD && steps.source-auth.outputs.token != '' && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
         continue-on-error: true
@@ -201,6 +191,7 @@ jobs:
           LIVE_URL: ${{ steps.deployment.outputs.live_url }}
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
           IS_REBUILD: ${{ inputs.IS_REBUILD }}
+          CATEGORY: ${{ inputs.CATEGORY }}
       - name: Upload public result metadata
         id: metadata-artifact
         if: ${{ always() && steps.metadata.outputs.path != '' }}
@@ -212,10 +203,49 @@ jobs:
           retention-days: 7
     outputs:
       artifact_id: ${{ steps.metadata-artifact.outputs.artifact-id }}
-  journal:
-    name: Record deployment journal
+  monthly:
+    name: Prepare monthly history
     needs: bnd
     if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == inputs.JOURNAL_REPO && needs.bnd.outputs.artifact_id != '' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deployment-monthly-${{ github.repository }}-${{ inputs.CATEGORY }}
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      issue_number: ${{ steps.monthly.outputs.issue_number }}
+    steps:
+      - name: Find public result artifact
+        id: result-artifact
+        uses: vezham/vx-deployer/.github/actions/deployment/read-deployment-result@timeline
+        with:
+          ARTIFACT_ID: ${{ needs.bnd.outputs.artifact_id }}
+      - name: Read public result metadata
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ${{ runner.temp }}/deployment-result
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+          name: ${{ steps.result-artifact.outputs.name }}
+      - name: Prepare monthly category issue
+        id: monthly
+        uses: vezham/vx-deployer/.github/actions/deployment/prepare-monthly-journal@timeline
+        with:
+          JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+          GIT_REPO: ${{ inputs.GIT_REPO }}
+          APP_NAME: ${{ inputs.APP_NAME }}
+          CATEGORY: ${{ inputs.CATEGORY }}
+          APP_ENV: ${{ inputs.TRACK_ENV }}
+          PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+          IS_REBUILD: ${{ inputs.IS_REBUILD }}
+          RESULT_FILE: ${{ runner.temp }}/deployment-result/result.json
+  journal:
+    name: Record deployment journal
+    needs:
+      - bnd
+      - monthly
+    if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == inputs.JOURNAL_REPO && needs.bnd.outputs.artifact_id != '' && needs.monthly.outputs.issue_number != '' }}
     runs-on: ubuntu-latest
     concurrency:
       group: deployment-journal-${{ github.repository }}-${{ inputs.APP_NAME }}
@@ -248,3 +278,5 @@ jobs:
           JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
           IS_REBUILD: ${{ inputs.IS_REBUILD }}
           RESULT_FILE: ${{ runner.temp }}/deployment-result/result.json
+          CATEGORY: ${{ inputs.CATEGORY }}
+          MONTHLY_ISSUE: ${{ needs.monthly.outputs.issue_number }}

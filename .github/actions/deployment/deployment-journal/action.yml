@@ -1,6 +1,5 @@
 name: Append deployment journal
-description: Append one structured entry for a completed promotion attempt
-
+description: Record a deployment in monthly category history and update its app state index
 inputs:
   JOURNAL_REPO:
     description: Repository containing the deployment journal
@@ -47,7 +46,12 @@ inputs:
   RESULT_FILE:
     description: Validated result JSON downloaded from the build job
     default: ''
-
+  CATEGORY:
+    description: Registry category for monthly history
+    required: true
+  MONTHLY_ISSUE:
+    description: Prepared category/month issue number
+    required: true
 outputs:
   issue_number:
     value: ${{ steps.journal.outputs.issue_number }}
@@ -58,7 +62,9 @@ outputs:
   entry_url:
     value: ${{ steps.journal.outputs.entry_url }}
     description: Deployment entry URL
-
+  history_issue_url:
+    description: Monthly history issue URL
+    value: ${{ steps.journal.outputs.history_issue_url }}
 runs:
   using: composite
   steps:
@@ -82,6 +88,8 @@ runs:
         JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
         IS_REBUILD: ${{ inputs.IS_REBUILD }}
         RESULT_FILE: ${{ inputs.RESULT_FILE }}
+        DEPLOYMENT_CATEGORY: ${{ inputs.CATEGORY }}
+        MONTHLY_ISSUE: ${{ inputs.MONTHLY_ISSUE }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

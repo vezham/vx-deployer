@@ -1,29 +1,52 @@
-# Deployment journal and current state
+# Monthly deployment history and current state
 
-One issue per source repository/app holds the current state in its body and history
-in comments. The index stores the latest attempt and success separately for every
-environment/Production target. Failed attempts do not replace successful SHAs or URLs.
-`kind` distinguishes manual promotions from routine rebuilds.
+History lives in one issue per category and UTC completion month:
+`Deployment log | cdns | 2026-10`. Each deployment comment identifies the app,
+source repository/SHA, environment/Production target, result, time, workflow and URLs.
+Dev, QA, Preview and Production attempts are included. `kind` distinguishes promotions
+from routine rebuilds; TVA stays on source commits.
 
-Supply `JOURNAL_ISSUE` to avoid scanning the issue directory. Indexed lookup needs one
-issue GET. Old journals are bootstrapped by reading their history once, including
-historical duplicate/closed journal issues. `UPDATE_INDEX: true` persists that bootstrap
-and recovers interrupted appends; it requires Issues write and the per-app journal lock.
-Read-only calls can read valid indexes or legacy history but cannot repair pending writes.
+The resolver derives category from the app's registry group and passes it through
+result capture. The immutable public result artifact includes category. The monthly
+preparation action validates the record against the current app, target and run,
+then locates or creates the category/month issue under a per-category concurrency
+lock: `deployment-monthly-<caller repo>-<category>`. It creates a
+`deployment-history:<category>` label automatically and uses label-filtered lookup.
+When a new monthly issue is created, older open monthly issues for that category
+are closed. Closed months remain readable and accept late entries/recovery for their
+original month. An older retry never reopens a month or closes a newer month.
 
-The shared workflow records the result in a separate `journal` job with the same
-concurrency group as the controller resolver: `deployment-journal-<caller repo>-<app>`.
-Use `queue: max` and `cancel-in-progress: false` so regional results queue instead of
-cancelling. All callers that mutate the index must use that shared lock.
+Current state stays in one closed app issue, titled `Deployment state | <app>`.
+The existing app issue is reused; old comments remain in place. Its body indexes
+the latest attempt and success independently for each environment/Production target,
+linking to the relevant monthly comment. Failed attempts and month rotation never
+replace a successful SHA. The scheduler reads this stable index, not monthly history.
+Supply `JOURNAL_ISSUE` for one issue GET; the scheduler directory includes closed
+state issues. No release tags or source-repository changes are needed.
 
-An intent is saved before creating the history comment. A retry/recovery finds its
-recent comment by event ID or creates the missing comment, then updates the index.
-Regular appends use a bounded recent comment page for deduplication instead of reading
-all history. Old workflow attempts outside that recent page are not a replay interface;
-Fresh build attempts have new event IDs. Rerunning only a failed journal job
-uses the original result artifact and retains its deployment event ID.
+Index writes use `deployment-journal-<caller repo>-<app>`, with `queue: max` and
+`cancel-in-progress: false`. The controller bootstrap/recovery job holds the same
+app lock. Monthly preparation runs in its own job, releasing the category lock before
+the app writer starts. Comment appends for different apps can proceed concurrently;
+only creation/rotation is serialized per category. All callers that mutate an app
+index must use its app lock.
 
-State has a bounded issue-body size. Corrupt indexes fail explicitly, and unfinished
-writes are recovered before a scheduled SHA is exposed. API quota reset and retry-after
-headers are respected with bounded retries; authentication/authorization errors do not
-silently fall back to another deployment.
+Before appending, the writer persists both the record and the prepared monthly
+issue number as a durable intent in the app index. If interrupted, a locked read or
+write recovers that exact monthly entry before exposing the successful SHA. Recovery
+can search older monthly pages when other apps have appended more entries; normal
+indexed reads do not scan history. Normal appends use a bounded recent-page duplicate
+check. An old event outside that window and no longer in the current index is not a
+replay interface. Rerunning only a failed journal job retains the original artifact's
+deployment event ID and completion month. Metadata expires after seven days.
+
+Legacy app journals bootstrap from their existing comments once. Existing pending
+per-app writes finish in their original issue before new writes move to monthly
+history. Existing indexes and all old comment links are preserved. `UPDATE_INDEX:
+true` requires Issues write and the app lock; read-only calls cannot repair pending
+writes. New state writes rename and close the state issue. Already indexed apps move
+to the closed state presentation on their next write.
+
+State body size remains bounded. Corrupt indexes, wrong app/category/month references
+and permission errors fail explicitly. API quota reset/retry-after headers are honored
+with bounded retries. No secret values or build output are stored in history.

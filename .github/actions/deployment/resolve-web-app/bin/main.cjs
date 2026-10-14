@@ -170,6 +170,7 @@ const resolveWebApp = (
   }
   return {
     app,
+    category: config.category,
     repository: caller ? callerRepository : config.repository,
     path: config.path,
     track_environment: trackEnvironment,

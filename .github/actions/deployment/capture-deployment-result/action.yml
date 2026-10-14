@@ -21,6 +21,9 @@ inputs:
     default: ''
   IS_REBUILD:
     default: 'false'
+  CATEGORY:
+    description: Registry category for the monthly history journal
+    required: true
 outputs:
   path:
     description: Result artifact directory
@@ -47,6 +50,7 @@ runs:
         LIVE_URL: ${{ inputs.LIVE_URL }}
         PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
         IS_REBUILD: ${{ inputs.IS_REBUILD }}
+        DEPLOYMENT_CATEGORY: ${{ inputs.CATEGORY }}
       with:
         script: |
           const { captureResult } = require(process.env.RESULT_CAPTURE_MODULE);

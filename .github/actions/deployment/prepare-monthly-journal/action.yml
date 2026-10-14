@@ -1,0 +1,48 @@
+name: Prepare monthly deployment journal
+description: Locate or create monthly category history under the category lock
+inputs:
+  JOURNAL_REPO:
+    default: ${{ github.repository }}
+  GIT_REPO:
+    required: true
+  APP_NAME:
+    required: true
+  CATEGORY:
+    required: true
+  APP_ENV:
+    required: true
+  PRODUCTION_TARGET:
+    default: ''
+  IS_REBUILD:
+    default: 'false'
+  RESULT_FILE:
+    required: true
+  GITHUB_TOKEN:
+    default: ${{ github.token }}
+outputs:
+  issue_number:
+    description: Category/month journal issue
+    value: ${{ steps.monthly.outputs.issue_number }}
+  issue_url:
+    description: Monthly history URL
+    value: ${{ steps.monthly.outputs.issue_url }}
+runs:
+  using: composite
+  steps:
+    - id: monthly
+      uses: actions/github-script@v7
+      env:
+        JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+        SOURCE_REPO: ${{ inputs.GIT_REPO }}
+        DEPLOYMENT_APP: ${{ inputs.APP_NAME }}
+        DEPLOYMENT_CATEGORY: ${{ inputs.CATEGORY }}
+        TARGET_ENV: ${{ inputs.APP_ENV }}
+        PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        IS_REBUILD: ${{ inputs.IS_REBUILD }}
+        RESULT_FILE: ${{ inputs.RESULT_FILE }}
+        JOURNAL_MODULE: ${{ github.action_path }}/../deployment-journal/bin/journal.cjs
+      with:
+        github-token: ${{ inputs.GITHUB_TOKEN }}
+        script: |
+          const { prepareMonthlyJournal } = require(process.env.JOURNAL_MODULE);
+          await prepareMonthlyJournal({ github, context, core });

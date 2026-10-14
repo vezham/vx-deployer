@@ -7,7 +7,8 @@ const {
   appendDeployment,
   readLatestDeployment,
   parseRecord,
-  issueBody
+  issueBody,
+  prepareMonthlyJournal
 } = require('./journal.cjs')
 
 const fixture = () => {
@@ -28,6 +29,7 @@ const fixture = () => {
     SOURCE_REPO: 'vezham/vx-fe-apps-cdns',
     SOURCE_SHA: 'a'.repeat(40),
     DEPLOYMENT_APP: 'static-cdn',
+    DEPLOYMENT_CATEGORY: 'cdns',
     TARGET_ENV: 'production',
     DEPLOYMENT_STATUS: 'success',
     FINISHED_AT: '2026-10-13T05:00:00Z',
@@ -48,16 +50,22 @@ const fixture = () => {
         })
       }
     },
-    listForRepo: async () => {
-      calls.push(['list'])
+    listForRepo: async params => {
+      calls.push(['list', params])
       return {
         data: clone(
-          issues.map(issue => ({
-            ...issue,
-            comments: comments.filter(
-              comment => comment.issue_number === issue.number
-            ).length
-          }))
+          issues
+            .filter(
+              issue =>
+                (!params.labels || issue.labels?.includes(params.labels)) &&
+                (params.state === 'all' || issue.state === params.state)
+            )
+            .map(issue => ({
+              ...issue,
+              comments: comments.filter(
+                comment => comment.issue_number === issue.number
+              ).length
+            }))
         )
       }
     },
@@ -68,6 +76,8 @@ const fixture = () => {
       calls.push(['read-comments', issue_number, page, items.length])
       return { data: clone(items) }
     },
+    getLabel: async () => ({ data: {} }),
+    createLabel: async () => ({ data: {} }),
     create: async params => {
       calls.push(['create', params])
       const issue = {
@@ -117,13 +127,21 @@ const fixture = () => {
       outputs[name] = value
     }
   }
-  const append = (overrides = {}, id = 10) =>
-    appendDeployment({
+  const append = async (overrides = {}, id = 10) => {
+    const actual = { ...env, ...overrides }
+    await prepareMonthlyJournal({
       github,
       core,
       context: { ...context, runId: id },
-      env: { ...env, ...overrides }
+      env: actual
     })
+    return appendDeployment({
+      github,
+      core,
+      context: { ...context, runId: id },
+      env: { ...actual, MONTHLY_ISSUE: outputs.issue_number }
+    })
+  }
   const read = (overrides = {}) =>
     readLatestDeployment({ github, core, env: { ...env, ...overrides } })
   return {
@@ -136,6 +154,11 @@ const fixture = () => {
     env,
     context,
     append,
+    get stateIssue() {
+      return issues.find(issue =>
+        issue.body?.startsWith('<!-- vx-deployment-journal:')
+      )
+    },
     read
   }
 }
@@ -145,7 +168,7 @@ test('one journal records different promotion environments and source commits', 
   await f.append({ TARGET_ENV: 'dev' }, 1)
   await f.append({ TARGET_ENV: 'qa', SOURCE_SHA: 'b'.repeat(40) }, 2)
   await f.append({ TARGET_ENV: 'production' }, 3)
-  assert.equal(f.issues.length, 1)
+  assert.equal(f.issues.length, 2)
   assert.equal(f.comments.length, 3)
   assert.equal(parseRecord(f.comments[1]).sha, 'b'.repeat(40))
   assert.match(f.comments[0].body, /Deployment data/)
@@ -311,21 +334,23 @@ test('TVA and invalid source records are rejected before writes', async () => {
   assert.equal(f.calls.length, 0)
 })
 
-test('concurrent first promotions write the canonical issue and close duplicates', async () => {
+test('serialized first promotions share monthly history while keeping the app index closed', async () => {
   const f = fixture()
-  await Promise.all([
-    f.append({ TARGET_ENV: 'dev' }, 1),
-    f.append({ TARGET_ENV: 'qa' }, 2)
-  ])
+  await f.append({ TARGET_ENV: 'dev' }, 1)
+  await f.append({ TARGET_ENV: 'qa' }, 2)
   assert.equal(f.issues.filter(issue => issue.state === 'open').length, 1)
-  assert.ok(f.comments.every(comment => comment.issue_number === 1))
+  assert.ok(
+    f.comments.every(comment => comment.issue_number !== f.stateIssue.number)
+  )
+  assert.equal(f.stateIssue.state, 'closed')
 })
 
 test('reader preserves valid history in duplicate or closed journal issues', async () => {
   const f = fixture()
   await f.append()
-  f.issues[0].body = issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP)
-  f.issues.push({ ...f.issues[0], number: 2, state: 'closed' })
+  f.stateIssue.body = issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP)
+  f.comments[0].issue_number = f.stateIssue.number
+  f.issues.push({ ...f.stateIssue, number: 900, state: 'closed' })
   const record = {
     ...parseRecord(f.comments[0]),
     sha: 'b'.repeat(40),
@@ -333,7 +358,7 @@ test('reader preserves valid history in duplicate or closed journal issues', asy
   }
   f.comments.push({
     id: 10,
-    issue_number: 2,
+    issue_number: 900,
     user: { type: 'Bot' },
     body: `<!-- vx-deployment-record:${JSON.stringify(record)} -->`
   })
@@ -408,7 +433,7 @@ test('indexed lookup uses one issue GET regardless of thousands of historical co
   for (let i = 0; i < 10000; i++)
     f.comments.push({ ...original, id: i + 10, body: 'historical note' })
   f.calls.length = 0
-  await f.read({ JOURNAL_ISSUE: '1' })
+  await f.read({ JOURNAL_ISSUE: String(f.stateIssue.number) })
   assert.equal(f.outputs.sha, 'a'.repeat(40))
   assert.deepEqual(
     f.calls.map(call => call[0]),
@@ -418,11 +443,18 @@ test('indexed lookup uses one issue GET regardless of thousands of historical co
 test('legacy journals bootstrap once then use the direct index', async () => {
   const f = fixture()
   await f.append()
-  f.issues[0].body = issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP)
-  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
-  assert.match(f.issues[0].body, /vx-deployment-state:/)
+  f.stateIssue.body = issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP)
+  f.comments[0].issue_number = f.stateIssue.number
+  await f.read({
+    JOURNAL_ISSUE: String(f.stateIssue.number),
+    UPDATE_INDEX: 'true'
+  })
+  assert.match(f.stateIssue.body, /vx-deployment-state:/)
   f.calls.length = 0
-  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  await f.read({
+    JOURNAL_ISSUE: String(f.stateIssue.number),
+    UPDATE_INDEX: 'true'
+  })
   assert.deepEqual(
     f.calls.map(call => call[0]),
     ['get']
@@ -432,9 +464,15 @@ test('different regional attempts retain distinct successful SHAs in the same is
   const f = fixture()
   await f.append({ PRODUCTION_TARGET: 'us' })
   await f.append({ PRODUCTION_TARGET: 'eu', SOURCE_SHA: 'b'.repeat(40) }, 11)
-  await f.read({ PRODUCTION_TARGET: 'us', JOURNAL_ISSUE: '1' })
+  await f.read({
+    PRODUCTION_TARGET: 'us',
+    JOURNAL_ISSUE: String(f.stateIssue.number)
+  })
   assert.equal(f.outputs.sha, 'a'.repeat(40))
-  await f.read({ PRODUCTION_TARGET: 'eu', JOURNAL_ISSUE: '1' })
+  await f.read({
+    PRODUCTION_TARGET: 'eu',
+    JOURNAL_ISSUE: String(f.stateIssue.number)
+  })
   assert.equal(f.outputs.sha, 'b'.repeat(40))
 })
 test('rebuild history preserves classification and never changes another target after failure', async () => {
@@ -450,7 +488,7 @@ test('rebuild history preserves classification and never changes another target 
     11
   )
   assert.equal(parseRecord(f.comments[1]).kind, 'rebuild')
-  assert.match(f.comments[1].body, /### rebuild/)
+  assert.match(f.comments[1].body, /### static-cdn \| rebuild/)
   await f.append(
     {
       PRODUCTION_TARGET: 'us',
@@ -460,7 +498,10 @@ test('rebuild history preserves classification and never changes another target 
     },
     12
   )
-  await f.read({ PRODUCTION_TARGET: 'us', JOURNAL_ISSUE: '1' })
+  await f.read({
+    PRODUCTION_TARGET: 'us',
+    JOURNAL_ISSUE: String(f.stateIssue.number)
+  })
   assert.equal(f.outputs.finished_at, '2026-10-13T06:00:00.000Z')
   await assert.rejects(
     f.append({ TARGET_ENV: 'dev', IS_REBUILD: 'true' }),
@@ -470,12 +511,18 @@ test('rebuild history preserves classification and never changes another target 
 test('wrong journal IDs and corrupt state fail without substituting another repository or SHA', async () => {
   const f = fixture()
   await f.append()
-  f.issues[0].body = '<!-- vx-deployment-journal:other/repo:static-cdn -->'
-  await assert.rejects(f.read({ JOURNAL_ISSUE: '1' }), /does not match/)
-  f.issues[0].body =
+  f.stateIssue.body = '<!-- vx-deployment-journal:other/repo:static-cdn -->'
+  await assert.rejects(
+    f.read({ JOURNAL_ISSUE: String(f.stateIssue.number) }),
+    /does not match/
+  )
+  f.stateIssue.body =
     issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP) +
     '\n<!-- vx-deployment-state:{broken} -->'
-  await assert.rejects(f.read({ JOURNAL_ISSUE: '1' }), /index is invalid/)
+  await assert.rejects(
+    f.read({ JOURNAL_ISSUE: String(f.stateIssue.number) }),
+    /index is invalid/
+  )
 })
 test('interrupted comment creation recovers the durable intent during a locked read', async () => {
   const f = fixture()
@@ -491,13 +538,19 @@ test('interrupted comment creation recovers the durable intent during a locked r
     ),
     /network interruption/
   )
-  assert.match(f.issues[0].body, /"pending"/)
+  assert.match(f.stateIssue.body, /"pending"/)
   f.github.rest.issues.createComment = create
-  await assert.rejects(f.read({ JOURNAL_ISSUE: '1' }), /incomplete write/)
-  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  await assert.rejects(
+    f.read({ JOURNAL_ISSUE: String(f.stateIssue.number) }),
+    /incomplete write/
+  )
+  await f.read({
+    JOURNAL_ISSUE: String(f.stateIssue.number),
+    UPDATE_INDEX: 'true'
+  })
   assert.equal(f.outputs.sha, 'b'.repeat(40))
   assert.equal(f.comments.length, 2)
-  assert.doesNotMatch(f.issues[0].body, /"pending"/)
+  assert.doesNotMatch(f.stateIssue.body, /"pending"/)
 })
 test('interrupted final index update recovers without duplicating the history comment', async () => {
   const f = fixture()
@@ -517,7 +570,10 @@ test('interrupted final index update recovers without duplicating the history co
   )
   assert.equal(f.comments.length, 2)
   f.github.rest.issues.update = update
-  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  await f.read({
+    JOURNAL_ISSUE: String(f.stateIssue.number),
+    UPDATE_INDEX: 'true'
+  })
   assert.equal(f.outputs.sha, 'b'.repeat(40))
   assert.equal(f.comments.length, 2)
 })
@@ -534,14 +590,17 @@ test('regular indexed appends read only a bounded recent page after 10000 old co
     })
   f.calls.length = 0
   await f.append(
-    { JOURNAL_ISSUE: '1', FINISHED_AT: '2026-10-13T06:00:00Z' },
+    {
+      JOURNAL_ISSUE: String(f.stateIssue.number),
+      FINISHED_AT: '2026-10-13T06:00:00Z'
+    },
     11
   )
   const reads = f.calls.filter(call => call[0] === 'read-comments')
   assert.equal(reads.length, 1)
   assert(reads[0][3] <= 100)
   assert.equal(
-    f.calls.some(call => call[0] === 'list'),
+    f.calls.some(call => call[0] === 'list' && !call[1]?.labels),
     false
   )
 })
@@ -563,11 +622,100 @@ test('result artifacts carry complete metadata into a later journal attempt with
     LIVE_URL: ''
   })
   assert.equal(f.comments.length, 1)
-  await f.read({ JOURNAL_ISSUE: '1' })
+  await f.read({ JOURNAL_ISSUE: String(f.stateIssue.number) })
   assert.equal(f.outputs.live_url, 'https://public.web.app/')
   writeFileSync(file, JSON.stringify({ ...record, app: 'other' }))
   await assert.rejects(
     f.append({ RESULT_FILE: file, GITHUB_RUN_ATTEMPT: '2' }),
     /does not match/
+  )
+})
+
+test('monthly rotation keeps the last successful SHA and links to its old month after a new-month failure', async () => {
+  const f = fixture()
+  await f.append({ FINISHED_AT: '2026-10-31T23:59:59Z' })
+  const priorEntry = f.outputs.entry_url,
+    firstState = f.stateIssue.number
+  await f.append(
+    {
+      FINISHED_AT: '2026-11-01T00:00:01Z',
+      DEPLOYMENT_STATUS: 'failure',
+      SOURCE_SHA: 'b'.repeat(40)
+    },
+    11
+  )
+  await f.read({ JOURNAL_ISSUE: String(firstState) })
+  assert.equal(f.outputs.sha, 'a'.repeat(40))
+  assert.equal(f.outputs.entry_url, priorEntry)
+  assert.equal(f.stateIssue.number, firstState)
+  assert.equal(f.stateIssue.state, 'closed')
+  assert.equal(
+    f.issues.filter(issue =>
+      issue.body.startsWith('<!-- vx-deployment-monthly:')
+    ).length,
+    2
+  )
+  assert.notEqual(f.comments[0].issue_number, f.comments[1].issue_number)
+})
+test('two apps share category history and retain independent closed indexes', async () => {
+  const f = fixture()
+  await f.append()
+  await f.append(
+    { DEPLOYMENT_APP: 'other-cdn', SOURCE_SHA: 'b'.repeat(40) },
+    11
+  )
+  const monthly = f.issues.filter(issue =>
+    issue.body.startsWith('<!-- vx-deployment-monthly:')
+  )
+  assert.equal(monthly.length, 1)
+  assert.equal(f.comments.length, 2)
+  assert.equal(f.comments[0].issue_number, f.comments[1].issue_number)
+  assert.match(f.comments[1].body, /### other-cdn/)
+  assert.equal(
+    f.issues.filter(issue =>
+      issue.body.startsWith('<!-- vx-deployment-journal:')
+    ).length,
+    2
+  )
+  await f.read()
+  assert.equal(f.outputs.sha, 'a'.repeat(40))
+  await f.read({ DEPLOYMENT_APP: 'other-cdn' })
+  assert.equal(f.outputs.sha, 'b'.repeat(40))
+})
+test('monthly pending recovery does not duplicate a comment pushed beyond the recent page by other apps', async () => {
+  const f = fixture()
+  await f.append()
+  const update = f.github.rest.issues.update
+  let count = 0
+  f.github.rest.issues.update = async args => {
+    if (args.body?.includes('vx-deployment-state:') && ++count === 2)
+      throw new Error('interrupted index')
+    return update(args)
+  }
+  await assert.rejects(
+    f.append(
+      { FINISHED_AT: '2026-10-13T06:00:00Z', SOURCE_SHA: 'b'.repeat(40) },
+      11
+    ),
+    /interrupted index/
+  )
+  f.github.rest.issues.update = update
+  const monthly = f.comments[1].issue_number
+  for (let i = 0; i < 150; i++)
+    f.comments.push({
+      id: 1000 + i,
+      issue_number: monthly,
+      user: { type: 'Bot' },
+      body: 'other app deployment'
+    })
+  await f.read({
+    JOURNAL_ISSUE: String(f.stateIssue.number),
+    UPDATE_INDEX: 'true'
+  })
+  assert.equal(f.outputs.sha, 'b'.repeat(40))
+  assert.equal(f.comments.length, 152)
+  assert.equal(
+    f.comments.filter(comment => parseRecord(comment)?.run_id === 11).length,
+    1
   )
 })

@@ -1,6 +1,5 @@
 name: Resolve web app settings
 description: Read app settings or discover scheduled deployments across all categories
-
 inputs:
   CONFIG_REPO:
     description: Repository containing the registry
@@ -31,11 +30,9 @@ inputs:
   JOURNAL_REPO:
     description: Optional journal lookup repository for scheduled batches; omit for app resolution
     default: ''
-
   SCHEDULED_ONLY:
     description: Filter discovery by app schedules on the workflow run creation date in IST
     default: 'false'
-
 outputs:
   apps:
     description: JSON array of enabled app IDs in the selected discovery scope
@@ -85,7 +82,9 @@ outputs:
   batches:
     description: JSON batches of up to 100 scheduled targets with journal issue references
     value: ${{ steps.resolve.outputs.batches }}
-
+  category:
+    description: Registry category derived from the app group
+    value: ${{ steps.resolve.outputs.category }}
 runs:
   using: composite
   steps:
@@ -95,19 +94,16 @@ runs:
       env:
         PACKAGE_PATH_SCRIPT: ${{ github.action_path }}/bin/resolve-package-path.cjs
       run: node "$PACKAGE_PATH_SCRIPT"
-
     - name: Setup resolver pnpm
       uses: pnpm/action-setup@v4
       with:
         package_json_file: ${{ steps.package-path.outputs.package_json_file }}
         run_install: false
-
     - name: Install resolver dependencies
       shell: bash
       env:
         RESOLVER_SETUP: ${{ github.action_path }}/bin/setup.sh
       run: bash "$RESOLVER_SETUP"
-
     - name: Read web app registry
       id: resolve
       uses: actions/github-script@v7
