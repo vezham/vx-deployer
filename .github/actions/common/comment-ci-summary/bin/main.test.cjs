@@ -199,3 +199,62 @@ for (const kind of ['qa', 'bnd', 'release']) {
     assert.match(action, /LouisBrunner\/checks-action@v2/)
   })
 }
+
+for (const kind of ['audit-fallow', 'audit-react-doctor']) {
+  test(`${kind} reruns reuse the tool comment and reject older attempts and runs`, async () => {
+    const { input, comments } = fixture()
+    await updateSummary({ ...input, kind, runNumber: '13', runAttempt: '2' })
+    assert.equal(
+      (
+        await updateSummary({
+          ...input,
+          kind,
+          runNumber: '13',
+          runAttempt: '1'
+        })
+      ).operation,
+      'skipped'
+    )
+    assert.equal(
+      (
+        await updateSummary({
+          ...input,
+          kind,
+          runNumber: '12',
+          runAttempt: '9'
+        })
+      ).operation,
+      'skipped'
+    )
+    assert.equal(
+      (
+        await updateSummary({
+          ...input,
+          kind,
+          runNumber: '13',
+          runAttempt: '3'
+        })
+      ).operation,
+      'updated'
+    )
+    assert.equal(comments.length, 1)
+  })
+}
+
+test('audit tools stay separate from each other and the QA summary', async () => {
+  const { input, comments } = fixture()
+  for (const kind of ['qa', 'audit-fallow', 'audit-react-doctor'])
+    await updateSummary({ ...input, kind })
+  assert.equal(comments.length, 3)
+})
+
+test('an audit tool in different workflows does not overwrite another workflow', async () => {
+  const { input, comments } = fixture()
+  await updateSummary({ ...input, kind: 'audit-fallow' })
+  await updateSummary({
+    ...input,
+    kind: 'audit-fallow',
+    workflowRef: input.workflowRef.replace('qa.yml', 'oss-qa.yml')
+  })
+  assert.equal(comments.length, 2)
+})

@@ -17,8 +17,12 @@ const updateSummary = async ({
   runNumber,
   runAttempt
 }) => {
-  if (!['qa', 'bnd', 'release'].includes(kind)) {
-    throw new Error('Summary kind must be qa, bnd or release')
+  if (
+    !['qa', 'bnd', 'release', 'audit-fallow', 'audit-react-doctor'].includes(
+      kind
+    )
+  ) {
+    throw new Error('Unsupported CI summary kind')
   }
   const workflow = workflowRef?.split('@')[0]
   if (!workflow || !summary?.trim()) {

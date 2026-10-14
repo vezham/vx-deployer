@@ -9,7 +9,7 @@ inputs:
     description: Path to the generated Markdown summary
     required: true
   kind:
-    description: Summary kind (qa, bnd or release)
+    description: Summary kind (qa, bnd, release, audit-fallow or audit-react-doctor)
     required: true
 
 runs:

@@ -1,13 +1,13 @@
 # CI commit summaries
 
-`summary-qa`, `summary-bnd` and `summary-release` use this common action to
+`summary-qa`, `summary-bnd`, `summary-release` and both `summary-audit` tool comments use this common action to
 create a commit comment once and update it on subsequent runs of the same
 workflow against that SHA. Each summary still includes its timestamp, attempt
 and workflow run link. PR sticky comments and check runs are unchanged.
 
 A hidden marker identifies the summary kind and caller workflow file from
 `GITHUB_WORKFLOW_REF`, excluding the branch or tag. Workflows with identical
-display names remain separate. QA, BnD and Release never overwrite each other.
+display names remain separate. QA, BnD, Release, Fallow and React Doctor never overwrite each other.
 Only bot comments with the exact marker are updated. Historical comments
 created by the previous implementation and human comments are preserved.
 The first run after migration creates a managed comment.

@@ -1,5 +1,5 @@
-name: Audit Summary
-description: Publish advisory audit counts to the job summary and commit
+name: 🧾 Audit Summary
+description: Publish audit score gate results and findings to the job summary and commit
 
 inputs:
   token:
@@ -12,31 +12,26 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Generate audit summary
+    - name: 🔵 · 🧾 Generate audit summary
+      id: render
       shell: bash
       env:
         AUDIT_REPORT: ${{ inputs.report }}
         AUDIT_MARKDOWN: ${{ runner.temp }}/vx-audit-summary.md
       run: node "$GITHUB_ACTION_PATH/render.cjs"
-    - name: Update tool comments on commit
+
+    - name: 🟠 · 💬 Update Fallow summary on commit
       continue-on-error: true
-      uses: actions/github-script@v7
-      env:
-        AUDIT_COMMENTS: ${{ runner.temp }}/vx-audit-summary.md.json
+      uses: vezham/vx-deployer/.github/actions/common/comment-ci-summary@timeline
       with:
-        github-token: ${{ inputs.token }}
-        script: |
-          const fs = require('node:fs');
-          const reports = JSON.parse(fs.readFileSync(process.env.AUDIT_COMMENTS, 'utf8'));
-          const comments = await github.paginate(github.rest.repos.listCommentsForCommit, {
-            ...context.repo, commit_sha: context.sha, per_page: 100
-          });
-          for (const [tool, body] of Object.entries(reports)) {
-            const marker = `<!-- vx-audit:${tool} -->`;
-            const existing = comments.find(comment => comment.user?.type === 'Bot' && comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker));
-            if (existing) {
-              await github.rest.repos.updateCommitComment({ ...context.repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.repos.createCommitComment({ ...context.repo, commit_sha: context.sha, body });
-            }
-          }
+        token: ${{ inputs.token }}
+        summary_path: ${{ steps.render.outputs.fallow_path }}
+        kind: audit-fallow
+
+    - name: 🟠 · 💬 Update React Doctor summary on commit
+      continue-on-error: true
+      uses: vezham/vx-deployer/.github/actions/common/comment-ci-summary@timeline
+      with:
+        token: ${{ inputs.token }}
+        summary_path: ${{ steps.render.outputs.react_doctor_path }}
+        kind: audit-react-doctor
