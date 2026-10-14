@@ -1,9 +1,13 @@
+const { mkdtempSync, writeFileSync, rmSync } = require('node:fs')
+const { tmpdir } = require('node:os')
+const { join } = require('node:path')
 const assert = require('node:assert/strict')
 const { test } = require('node:test')
 const {
   appendDeployment,
   readLatestDeployment,
-  parseRecord
+  parseRecord,
+  issueBody
 } = require('./journal.cjs')
 
 const fixture = () => {
@@ -33,12 +37,37 @@ const fixture = () => {
   }
   const clone = value => JSON.parse(JSON.stringify(value))
   const rest = {
-    listForRepo: async () => ({ data: clone(issues) }),
-    listComments: async ({ issue_number }) => ({
-      data: clone(
-        comments.filter(comment => comment.issue_number === issue_number)
-      )
-    }),
+    get: async ({ issue_number }) => {
+      calls.push(['get', issue_number])
+      return {
+        data: clone({
+          ...issues.find(issue => issue.number === issue_number),
+          comments: comments.filter(
+            comment => comment.issue_number === issue_number
+          ).length
+        })
+      }
+    },
+    listForRepo: async () => {
+      calls.push(['list'])
+      return {
+        data: clone(
+          issues.map(issue => ({
+            ...issue,
+            comments: comments.filter(
+              comment => comment.issue_number === issue.number
+            ).length
+          }))
+        )
+      }
+    },
+    listComments: async ({ issue_number, page = 1, per_page = 100 }) => {
+      const items = comments
+        .filter(comment => comment.issue_number === issue_number)
+        .slice((page - 1) * per_page, page * per_page)
+      calls.push(['read-comments', issue_number, page, items.length])
+      return { data: clone(items) }
+    },
     create: async params => {
       calls.push(['create', params])
       const issue = {
@@ -63,6 +92,7 @@ const fixture = () => {
       return { data: clone(comment) }
     },
     update: async params => {
+      calls.push(['update', params])
       Object.assign(
         issues.find(issue => issue.number === params.issue_number),
         params
@@ -72,7 +102,15 @@ const fixture = () => {
   }
   const github = {
     rest: { issues: rest },
-    paginate: async (method, params) => (await method(params)).data
+    paginate: async (method, params) => {
+      if (method !== rest.listComments) return (await method(params)).data
+      const data = []
+      for (let page = 1; ; page++) {
+        const response = await method({ ...params, page })
+        data.push(...response.data)
+        if (response.data.length < params.per_page) return data
+      }
+    }
   }
   const core = {
     setOutput: (name, value) => {
@@ -286,6 +324,7 @@ test('concurrent first promotions write the canonical issue and close duplicates
 test('reader preserves valid history in duplicate or closed journal issues', async () => {
   const f = fixture()
   await f.append()
+  f.issues[0].body = issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP)
   f.issues.push({ ...f.issues[0], number: 2, state: 'closed' })
   const record = {
     ...parseRecord(f.comments[0]),
@@ -360,4 +399,175 @@ test('invalid target selection fails before journal reads or writes', async () =
     /Invalid Production/
   )
   assert.equal(f.calls.length, 0)
+})
+
+test('indexed lookup uses one issue GET regardless of thousands of historical comments', async () => {
+  const f = fixture()
+  await f.append()
+  const original = f.comments[0]
+  for (let i = 0; i < 10000; i++)
+    f.comments.push({ ...original, id: i + 10, body: 'historical note' })
+  f.calls.length = 0
+  await f.read({ JOURNAL_ISSUE: '1' })
+  assert.equal(f.outputs.sha, 'a'.repeat(40))
+  assert.deepEqual(
+    f.calls.map(call => call[0]),
+    ['get']
+  )
+})
+test('legacy journals bootstrap once then use the direct index', async () => {
+  const f = fixture()
+  await f.append()
+  f.issues[0].body = issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP)
+  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  assert.match(f.issues[0].body, /vx-deployment-state:/)
+  f.calls.length = 0
+  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  assert.deepEqual(
+    f.calls.map(call => call[0]),
+    ['get']
+  )
+})
+test('different regional attempts retain distinct successful SHAs in the same issue index', async () => {
+  const f = fixture()
+  await f.append({ PRODUCTION_TARGET: 'us' })
+  await f.append({ PRODUCTION_TARGET: 'eu', SOURCE_SHA: 'b'.repeat(40) }, 11)
+  await f.read({ PRODUCTION_TARGET: 'us', JOURNAL_ISSUE: '1' })
+  assert.equal(f.outputs.sha, 'a'.repeat(40))
+  await f.read({ PRODUCTION_TARGET: 'eu', JOURNAL_ISSUE: '1' })
+  assert.equal(f.outputs.sha, 'b'.repeat(40))
+})
+test('rebuild history preserves classification and never changes another target after failure', async () => {
+  const f = fixture()
+  await f.append({ PRODUCTION_TARGET: 'us' })
+  await f.append(
+    {
+      PRODUCTION_TARGET: 'us',
+      IS_REBUILD: 'true',
+      FINISHED_AT: '2026-10-13T06:00:00Z',
+      LIVE_URL: 'https://us.web.app'
+    },
+    11
+  )
+  assert.equal(parseRecord(f.comments[1]).kind, 'rebuild')
+  assert.match(f.comments[1].body, /### rebuild/)
+  await f.append(
+    {
+      PRODUCTION_TARGET: 'us',
+      IS_REBUILD: 'true',
+      DEPLOYMENT_STATUS: 'failure',
+      FINISHED_AT: '2026-10-13T07:00:00Z'
+    },
+    12
+  )
+  await f.read({ PRODUCTION_TARGET: 'us', JOURNAL_ISSUE: '1' })
+  assert.equal(f.outputs.finished_at, '2026-10-13T06:00:00.000Z')
+  await assert.rejects(
+    f.append({ TARGET_ENV: 'dev', IS_REBUILD: 'true' }),
+    /only allowed/
+  )
+})
+test('wrong journal IDs and corrupt state fail without substituting another repository or SHA', async () => {
+  const f = fixture()
+  await f.append()
+  f.issues[0].body = '<!-- vx-deployment-journal:other/repo:static-cdn -->'
+  await assert.rejects(f.read({ JOURNAL_ISSUE: '1' }), /does not match/)
+  f.issues[0].body =
+    issueBody(f.env.SOURCE_REPO, f.env.DEPLOYMENT_APP) +
+    '\n<!-- vx-deployment-state:{broken} -->'
+  await assert.rejects(f.read({ JOURNAL_ISSUE: '1' }), /index is invalid/)
+})
+test('interrupted comment creation recovers the durable intent during a locked read', async () => {
+  const f = fixture()
+  await f.append()
+  const create = f.github.rest.issues.createComment
+  f.github.rest.issues.createComment = async () => {
+    throw new Error('network interruption')
+  }
+  await assert.rejects(
+    f.append(
+      { SOURCE_SHA: 'b'.repeat(40), FINISHED_AT: '2026-10-13T06:00:00Z' },
+      11
+    ),
+    /network interruption/
+  )
+  assert.match(f.issues[0].body, /"pending"/)
+  f.github.rest.issues.createComment = create
+  await assert.rejects(f.read({ JOURNAL_ISSUE: '1' }), /incomplete write/)
+  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  assert.equal(f.outputs.sha, 'b'.repeat(40))
+  assert.equal(f.comments.length, 2)
+  assert.doesNotMatch(f.issues[0].body, /"pending"/)
+})
+test('interrupted final index update recovers without duplicating the history comment', async () => {
+  const f = fixture()
+  await f.append()
+  const update = f.github.rest.issues.update
+  let count = 0
+  f.github.rest.issues.update = async args => {
+    if (++count === 2) throw new Error('interrupted update')
+    return update(args)
+  }
+  await assert.rejects(
+    f.append(
+      { SOURCE_SHA: 'b'.repeat(40), FINISHED_AT: '2026-10-13T06:00:00Z' },
+      11
+    ),
+    /interrupted update/
+  )
+  assert.equal(f.comments.length, 2)
+  f.github.rest.issues.update = update
+  await f.read({ JOURNAL_ISSUE: '1', UPDATE_INDEX: 'true' })
+  assert.equal(f.outputs.sha, 'b'.repeat(40))
+  assert.equal(f.comments.length, 2)
+})
+
+test('regular indexed appends read only a bounded recent page after 10000 old comments', async () => {
+  const f = fixture()
+  await f.append()
+  for (let i = 0; i < 10000; i++)
+    f.comments.push({
+      id: i + 100,
+      issue_number: 1,
+      user: { type: 'Bot' },
+      body: 'old note'
+    })
+  f.calls.length = 0
+  await f.append(
+    { JOURNAL_ISSUE: '1', FINISHED_AT: '2026-10-13T06:00:00Z' },
+    11
+  )
+  const reads = f.calls.filter(call => call[0] === 'read-comments')
+  assert.equal(reads.length, 1)
+  assert(reads[0][3] <= 100)
+  assert.equal(
+    f.calls.some(call => call[0] === 'list'),
+    false
+  )
+})
+
+test('result artifacts carry complete metadata into a later journal attempt without duplicating deployments', async t => {
+  const f = fixture()
+  await f.append({ LIVE_URL: 'https://public.web.app' })
+  const directory = mkdtempSync(join(tmpdir(), 'vx-journal-result-'))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const file = join(directory, 'result.json'),
+    record = parseRecord(f.comments[0])
+  writeFileSync(file, JSON.stringify(record))
+  await f.append({
+    RESULT_FILE: file,
+    GITHUB_RUN_ATTEMPT: '2',
+    SOURCE_SHA: '',
+    DEPLOYMENT_STATUS: '',
+    FINISHED_AT: '',
+    LIVE_URL: ''
+  })
+  assert.equal(f.comments.length, 1)
+  await f.read({ JOURNAL_ISSUE: '1' })
+  assert.equal(f.outputs.live_url, 'https://public.web.app/')
+  writeFileSync(file, JSON.stringify({ ...record, app: 'other' }))
+  await assert.rejects(
+    f.append({ RESULT_FILE: file, GITHUB_RUN_ATTEMPT: '2' }),
+    /does not match/
+  )
 })

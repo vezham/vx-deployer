@@ -1,6 +1,8 @@
 'use strict'
 
 const yaml = require('js-yaml')
+const { respectRateLimits } = require('../../deployment-journal/bin/api.cjs')
+const { buildBatches, discoverJournalIssues } = require('./schedule.cjs')
 const { getPromotionPath } = require('../../validate-promotion/bin/policy.cjs')
 
 const {
@@ -174,14 +176,20 @@ const resolveWebApp = (
   }
 }
 
-const listWebApps = (catalog, category) => {
+const listWebApps = (catalog, category = '') => {
   const apps = getCatalogApps(catalog)
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(category))
+  if (
+    typeof category !== 'string' ||
+    (category !== '' && !/^[a-z0-9][a-z0-9-]*$/.test(category))
+  )
     throw new Error('Invalid web app category')
   return Object.keys(apps)
     .filter(app => {
       const config = apps[app]
-      if (config?.enabled === false || config?.category !== category)
+      if (
+        config?.enabled === false ||
+        (category && config?.category !== category)
+      )
         return false
       for (const productionTarget of getProductionTargets(config))
         resolveWebApp(catalog, {
@@ -197,7 +205,11 @@ const listWebApps = (catalog, category) => {
 const listProductionDeployments = (catalog, category) => {
   const entries = getCatalogApps(catalog)
   return listWebApps(catalog, category).flatMap(app =>
-    getProductionTargets(entries[app]).map(target => ({ app, target }))
+    getProductionTargets(entries[app]).map(target => ({
+      app,
+      target,
+      category: entries[app].category
+    }))
   )
 }
 
@@ -208,6 +220,7 @@ const parseCatalog = source => {
 }
 
 const main = async ({ github, core, env = process.env }) => {
+  respectRateLimits({ github, core })
   const repository = env.CONFIG_REPO
   if (
     !/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repository) ||
@@ -215,8 +228,15 @@ const main = async ({ github, core, env = process.env }) => {
   ) {
     throw new Error('CONFIG_REPO and CONFIG_REF are required')
   }
-  if (Boolean(env.APP) === Boolean(env.CATEGORY))
-    throw new Error('Provide exactly one of APP or CATEGORY')
+  const allApps = env.ALL_APPS || 'false'
+  if (!['true', 'false'].includes(allApps))
+    throw new Error('ALL_APPS must be true or false')
+  if (
+    [Boolean(env.APP), Boolean(env.CATEGORY), allApps === 'true'].filter(
+      Boolean
+    ).length !== 1
+  )
+    throw new Error('Provide exactly one of APP, CATEGORY or ALL_APPS=true')
   const [owner, repo] = repository.split('/')
   const { data } = await github.rest.repos.getContent({
     owner,
@@ -234,13 +254,23 @@ const main = async ({ github, core, env = process.env }) => {
   const catalog = parseCatalog(
     Buffer.from(data.content, 'base64').toString('utf8')
   )
-  if (env.CATEGORY) {
-    const deployments = listProductionDeployments(catalog, env.CATEGORY)
+  if (env.CATEGORY || allApps === 'true') {
+    const deployments = listProductionDeployments(catalog, env.CATEGORY || '')
+    const scheduled = env.JOURNAL_REPO
+      ? await discoverJournalIssues({
+          github,
+          journalRepository: env.JOURNAL_REPO,
+          deployments,
+          apps: getCatalogApps(catalog)
+        })
+      : deployments
+    const batches = buildBatches(scheduled)
     core.setOutput(
       'apps',
       JSON.stringify([...new Set(deployments.map(item => item.app))])
     )
     core.setOutput('deployments', JSON.stringify(deployments))
+    core.setOutput('batches', JSON.stringify(batches))
     return
   }
   const resolved = resolveWebApp(catalog, {

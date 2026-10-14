@@ -20,6 +20,12 @@ inputs:
   PRODUCTION_TARGET:
     description: App-specific Production target; empty uses the single default deployment
     default: ''
+  JOURNAL_ISSUE:
+    description: Known app journal issue number; empty discovers the journal
+    default: ''
+  UPDATE_INDEX:
+    description: Bootstrap/recover the index under the per-app journal lock; requires Issues write
+    default: 'false'
 
 outputs:
   found:
@@ -46,6 +52,9 @@ outputs:
   live_url:
     description: Live URL of the successful deployment
     value: ${{ steps.latest.outputs.live_url }}
+  issue_number:
+    description: Resolved app journal issue number
+    value: ${{ steps.latest.outputs.issue_number }}
 
 runs:
   using: composite
@@ -60,6 +69,8 @@ runs:
         TARGET_ENV: ${{ inputs.APP_ENV }}
         JOURNAL_ACTION_PATH: ${{ github.action_path }}
         PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
+        UPDATE_INDEX: ${{ inputs.UPDATE_INDEX }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

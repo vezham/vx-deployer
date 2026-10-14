@@ -33,11 +33,17 @@ inputs:
   PRODUCTION_TARGET:
     description: App-specific Production target; empty uses the single default deployment
     default: ''
+  JOURNAL_ISSUE:
+    description: Known app journal issue number; empty discovers the journal
+    default: ''
 
 outputs:
   git_ref:
     description: TVA branch or validated promotion SHA; empty when no Production history exists
     value: ${{ steps.commit.outputs.sha || steps.plan.outputs.git_ref }}
+  journal_issue:
+    description: App journal issue number for the completed attempt
+    value: ${{ steps.production.outputs.issue_number || inputs.JOURNAL_ISSUE }}
 
 runs:
   using: composite
@@ -73,6 +79,8 @@ runs:
         APP_ENV: production
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
+        UPDATE_INDEX: 'true'
 
     - name: Summarize scheduled source selection
       if: ${{ inputs.USE_LATEST_PRODUCTION == 'true' }}

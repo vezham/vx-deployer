@@ -1,0 +1,53 @@
+name: Capture deployment result
+description: Write validated public result metadata for the serialized journal job
+inputs:
+  GIT_REPO:
+    required: true
+  GIT_SHA:
+    required: true
+  APP_NAME:
+    required: true
+  APP_ENV:
+    required: true
+  STATUS:
+    required: true
+  STARTED_AT: {}
+  FINISHED_AT:
+    required: true
+  PREVIEW_URL: {}
+  PREVIEW_EXPIRES_AT: {}
+  LIVE_URL: {}
+  PRODUCTION_TARGET:
+    default: ''
+  IS_REBUILD:
+    default: 'false'
+outputs:
+  path:
+    description: Result artifact directory
+    value: ${{ steps.result.outputs.path }}
+  name:
+    description: Unique run attempt result artifact name
+    value: ${{ steps.result.outputs.name }}
+runs:
+  using: composite
+  steps:
+    - id: result
+      uses: actions/github-script@v7
+      env:
+        RESULT_CAPTURE_MODULE: ${{ github.action_path }}/bin/main.cjs
+        SOURCE_REPO: ${{ inputs.GIT_REPO }}
+        SOURCE_SHA: ${{ inputs.GIT_SHA }}
+        DEPLOYMENT_APP: ${{ inputs.APP_NAME }}
+        TARGET_ENV: ${{ inputs.APP_ENV }}
+        DEPLOYMENT_STATUS: ${{ inputs.STATUS }}
+        STARTED_AT: ${{ inputs.STARTED_AT }}
+        FINISHED_AT: ${{ inputs.FINISHED_AT }}
+        PREVIEW_URL: ${{ inputs.PREVIEW_URL }}
+        PREVIEW_EXPIRES_AT: ${{ inputs.PREVIEW_EXPIRES_AT }}
+        LIVE_URL: ${{ inputs.LIVE_URL }}
+        PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        IS_REBUILD: ${{ inputs.IS_REBUILD }}
+      with:
+        script: |
+          const { captureResult } = require(process.env.RESULT_CAPTURE_MODULE);
+          captureResult({ context, core });

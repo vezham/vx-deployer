@@ -709,8 +709,8 @@ test('app-specific destinations override profile, values, secrets and credential
     SAME_KEY: 'US_API_KEY'
   })
   assert.deepEqual(listProductionDeployments(config, 'cdns'), [
-    { app: 'test-app', target: 'customer-east' },
-    { app: 'test-app', target: 'us' }
+    { app: 'test-app', target: 'customer-east', category: 'cdns' },
+    { app: 'test-app', target: 'us', category: 'cdns' }
   ])
   assert.throws(
     () => resolveWebApp(config, { app: 'test-app', environment: 'production' }),
@@ -761,9 +761,9 @@ test('different apps discover their own target sets, including an explicit defau
     }
   }
   assert.deepEqual(listProductionDeployments(config, 'cdns'), [
-    { app: 'second', target: 'default' },
-    { app: 'second', target: 'eu' },
-    { app: 'test-app', target: 'default' }
+    { app: 'second', target: 'default', category: 'cdns' },
+    { app: 'second', target: 'eu', category: 'cdns' },
+    { app: 'test-app', target: 'default', category: 'cdns' }
   ])
   assert.equal(
     resolveWebApp(config, { app: 'second', environment: 'production' })
@@ -861,4 +861,112 @@ test('registry action forwards the TVA repository context to checkout and source
   assert.equal(outputs.repository, 'example-lab/fork-b')
   assert.equal(outputs.git_ref, 'timeline')
   assert.equal(outputs.credential_secret, 'TEST_TVA_GCP_SA_KEY')
+})
+
+test('all-app discovery spans categories and expands only enabled app Production targets', () => {
+  const config = catalog(),
+    template = config['apps-cdns']['test-app']
+  config.apps = { books: structuredClone(template) }
+  config['apps-widgets'] = {
+    chat: {
+      ...structuredClone(template),
+      production_targets: {
+        us: { credential_secret: 'US_KEY' },
+        eu: { credential_secret: 'EU_KEY' }
+      }
+    }
+  }
+  config['apps-pods'] = {
+    disabled: {
+      ...structuredClone(template),
+      enabled: false,
+      credential_secrets: {}
+    }
+  }
+  assert.deepEqual(listProductionDeployments(config), [
+    { app: 'books', target: 'default', category: 'apps' },
+    { app: 'chat', target: 'eu', category: 'widgets' },
+    { app: 'chat', target: 'us', category: 'widgets' },
+    { app: 'test-app', target: 'default', category: 'cdns' }
+  ])
+  assert.deepEqual(listWebApps(config, 'widgets'), ['chat'])
+})
+const discoveryApi = (config, request) => {
+  const outputs = {},
+    requests = []
+  return {
+    env: {
+      CONFIG_REPO: 'example/deployer',
+      CONFIG_REF: 'b'.repeat(40),
+      CONFIG_PATH: '.github/config/web-apps.yaml',
+      ...request
+    },
+    github: {
+      rest: {
+        repos: {
+          getContent: async args => {
+            requests.push(args)
+            return {
+              data: {
+                type: 'file',
+                encoding: 'base64',
+                content: Buffer.from(yaml.dump(config)).toString('base64')
+              }
+            }
+          }
+        }
+      }
+    },
+    core: {
+      setOutput: (key, value) => {
+        outputs[key] = value
+      }
+    },
+    outputs,
+    requests
+  }
+}
+test('ALL_APPS action returns every target once with category labels and reads a pinned registry ref', async () => {
+  const config = catalog()
+  config.apps = { books: structuredClone(config['apps-cdns']['test-app']) }
+  const input = discoveryApi(config, { ALL_APPS: 'true' })
+  await main(input)
+  assert.deepEqual(JSON.parse(input.outputs.apps), ['books', 'test-app'])
+  assert.deepEqual(JSON.parse(input.outputs.deployments), [
+    { app: 'books', target: 'default', category: 'apps' },
+    { app: 'test-app', target: 'default', category: 'cdns' }
+  ])
+  assert.equal(input.requests[0].ref, 'b'.repeat(40))
+})
+test('ALL_APPS returns an empty matrix when no apps are enabled', async () => {
+  const config = catalog()
+  config['apps-cdns']['test-app'].enabled = false
+  const input = discoveryApi(config, { ALL_APPS: 'true' })
+  await main(input)
+  assert.equal(input.outputs.deployments, '[]')
+  assert.equal(input.outputs.apps, '[]')
+})
+for (const request of [
+  {},
+  { APP: 'test-app', CATEGORY: 'cdns' },
+  { APP: 'test-app', ALL_APPS: 'true' },
+  { CATEGORY: 'cdns', ALL_APPS: 'true' },
+  { ALL_APPS: 'yes' }
+])
+  test(
+    'ambiguous discovery selectors fail before registry access: ' +
+      JSON.stringify(request),
+    async () => {
+      const input = discoveryApi(catalog(), request)
+      await assert.rejects(main(input), /exactly one|ALL_APPS must/)
+      assert.deepEqual(input.requests, [])
+      assert.deepEqual(input.outputs, {})
+    }
+  )
+test('all-app discovery validates enabled entries before publishing a matrix', async () => {
+  const config = catalog()
+  delete config['apps-cdns']['test-app'].credential_secrets.production
+  const input = discoveryApi(config, { ALL_APPS: 'true' })
+  await assert.rejects(main(input), /credential secret/)
+  assert.deepEqual(input.outputs, {})
 })

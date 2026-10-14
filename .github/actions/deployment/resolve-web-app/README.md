@@ -2,7 +2,8 @@
 
 Reads the common `.github/config/web-apps.yaml` registry at an explicit repository
 and ref. `APP` selects one app and its environment profile; `CATEGORY` lists enabled
-apps for a scheduled workflow matrix. Matrix outputs stay JSON for GitHub Actions'
+apps for a scheduled workflow matrix; `ALL_APPS: true` discovers every category.
+Choose exactly one selector. Matrix outputs stay JSON for GitHub Actions'
 `fromJSON` expressions.
 
 The parser preserves numeric and boolean values, supports comments and aliases,
@@ -68,7 +69,7 @@ latest successful SHA for each Production target.
 
 The resolver merges `values` and `secret_values` from defaults,
 app, default environment, app environment and target, in that order. It outputs public
-values and secret names, never secret contents. `deployments` contains `{app, target}`
+values and secret names, never secret contents. `deployments` contains `{app, target, category}`
 pairs for category scheduling. See the controller registry README for configuration.
 
 ## TVA caller repository
@@ -82,3 +83,23 @@ Actions secrets under the configured credential and build-secret names.
 The registry `repository` continues to select the source for manual promotions
 and scheduled Production rebuilds. TVA caller identity cannot redirect a promotion.
 The allowed TVA branches and app paths are unchanged.
+
+## Unified scheduled discovery
+
+Use `ALL_APPS: 'true'` without `APP` or `CATEGORY` to build one matrix across all
+registry groups, including `apps`. Disabled entries are excluded. Each app expands
+into its default or named Production targets. The matrix records category metadata
+for display while the shared deployment flow still locks and reads history per app
+and Production target. Empty discovery returns `[]` so the caller can skip deployment.
+
+## Bounded scheduled batches
+
+`batches` contains up to 100 targets per batch, with category labels and serialized
+`deployments` for the common worker. With `JOURNAL_REPO`, discovery reads the issue
+directory once and includes only apps with a canonical journal. Every region gets
+that app's known `journal_issue`; final source selection still happens under the
+app/target deployment lock. No journal means the app waits for another run.
+
+Batch count and output size are checked before publishing outputs. Normal app and
+TVA resolution do not query the journal. API quota errors wait for reset/retry-after
+with bounded retries; permission failures propagate immediately.

@@ -142,7 +142,7 @@ const renderTracker = ({
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...rows,
     '',
-    'URLs belong to the last successful deployment. Failed or cancelled retries preserve them. Times are UTC.'
+    'URLs belong to the last successful promotion or TVA deployment. Scheduled rebuild URLs are in the deployment journal. Times are UTC.'
   ].join('\n')
 }
 

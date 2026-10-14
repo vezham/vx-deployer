@@ -1,0 +1,22 @@
+name: Prepare scheduled deployment batch
+description: Validate a bounded app and Production-target batch
+inputs:
+  DEPLOYMENTS:
+    required: true
+    description: JSON array of 1–100 scheduled targets
+outputs:
+  deployments:
+    description: Validated deployment matrix
+    value: ${{ steps.batch.outputs.deployments }}
+runs:
+  using: composite
+  steps:
+    - id: batch
+      uses: actions/github-script@v7
+      env:
+        BATCH_MODULE: ${{ github.action_path }}/../resolve-web-app/bin/schedule.cjs
+        DEPLOYMENTS: ${{ inputs.DEPLOYMENTS }}
+      with:
+        script: |
+          const { validateBatch } = require(process.env.BATCH_MODULE);
+          core.setOutput('deployments', JSON.stringify(validateBatch(process.env.DEPLOYMENTS)));

@@ -9,8 +9,8 @@ inputs:
     description: Source repository
     required: true
   GIT_SHA:
-    description: Full deployed source SHA
-    required: true
+    description: Required when RESULT_FILE is not supplied
+    required: false
   APP_NAME:
     description: Application name
     required: true
@@ -18,14 +18,14 @@ inputs:
     description: Destination (dev, qa, preview or production)
     required: true
   STATUS:
-    description: Completed attempt status (success, failure or cancelled)
-    required: true
+    description: Required when RESULT_FILE is not supplied
+    required: false
   STARTED_AT:
     description: Deployment start timestamp
     required: false
   FINISHED_AT:
-    description: Deployment completion timestamp
-    required: true
+    description: Required when RESULT_FILE is not supplied
+    required: false
   PREVIEW_URL:
     required: false
   PREVIEW_EXPIRES_AT:
@@ -37,6 +37,15 @@ inputs:
     default: ${{ github.token }}
   PRODUCTION_TARGET:
     description: App-specific Production target; empty uses the single default deployment
+    default: ''
+  JOURNAL_ISSUE:
+    description: Known app journal issue number; empty discovers the journal
+    default: ''
+  IS_REBUILD:
+    description: Record a routine Production rebuild separately from promotion
+    default: 'false'
+  RESULT_FILE:
+    description: Validated result JSON downloaded from the build job
     default: ''
 
 outputs:
@@ -70,6 +79,9 @@ runs:
         LIVE_URL: ${{ inputs.LIVE_URL }}
         JOURNAL_ACTION_PATH: ${{ github.action_path }}
         PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
+        IS_REBUILD: ${{ inputs.IS_REBUILD }}
+        RESULT_FILE: ${{ inputs.RESULT_FILE }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

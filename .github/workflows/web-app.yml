@@ -51,6 +51,13 @@ on:
       BUILD_SECRET_VALUES:
         type: string
         default: '{}'
+      JOURNAL_ISSUE:
+        type: string
+        default: ''
+      IS_REBUILD:
+        description: Routine rebuild of an already successful Production SHA
+        type: boolean
+        default: false
 
 # Permissions come from the entrypoint: TVA does not need issues: write.
 env:
@@ -70,6 +77,15 @@ jobs:
         working-directory: ${{ env.ENTRY_POINT }}
 
     steps:
+      - name: Validate rebuild mode
+        uses: actions/github-script@v7
+        env:
+          TRACK_ENV: ${{ inputs.TRACK_ENV }}
+          IS_REBUILD: ${{ inputs.IS_REBUILD }}
+        with:
+          script: |
+            if (!['tva', 'dev', 'qa', 'preview', 'production'].includes(process.env.TRACK_ENV)) throw new Error('Invalid tracking environment');
+            if (process.env.IS_REBUILD === 'true' && process.env.TRACK_ENV !== 'production') throw new Error('Routine rebuilds require Production');
       - name: Validate deployment settings
         uses: vezham/vx-deployer/.github/actions/deployment/validate@timeline
         with:
@@ -110,6 +126,7 @@ jobs:
           STATUS: in_progress
           GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+        if: ${{ !inputs.IS_REBUILD }}
       - name: setup | app build configuration
         uses: vezham/vx-deployer/.github/actions/deployment/configure-web-app@timeline
         with:
@@ -153,7 +170,7 @@ jobs:
           echo "finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: action | track deployment result
-        if: ${{ always() && steps.source-auth.outputs.token != '' && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
+        if: ${{ always() && !inputs.IS_REBUILD && steps.source-auth.outputs.token != '' && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
         continue-on-error: true
         uses: vezham/vx-deployer/.github/actions/deployment/comment-promotion@timeline
         with:
@@ -167,12 +184,11 @@ jobs:
           LIVE_URL: ${{ steps.deployment.outputs.live_url }}
           GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
-
-      - name: action | append deployment journal
-        if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == env.DEPLOYMENT_JOURNAL_REPO && steps.result.outputs.status != '' }}
-        uses: vezham/vx-deployer/.github/actions/deployment/deployment-journal@timeline
+      - name: Capture public result metadata
+        id: metadata
+        if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == inputs.JOURNAL_REPO && steps.result.outputs.status != '' }}
+        uses: vezham/vx-deployer/.github/actions/deployment/capture-deployment-result@timeline
         with:
-          JOURNAL_REPO: ${{ env.DEPLOYMENT_JOURNAL_REPO }}
           GIT_REPO: ${{ env.REPO }}
           GIT_SHA: ${{ steps.source.outputs.sha || inputs.GIT_REF }}
           APP_NAME: ${{ env.VX_APP_NAME }}
@@ -183,5 +199,52 @@ jobs:
           PREVIEW_URL: ${{ steps.deployment.outputs.preview_url }}
           PREVIEW_EXPIRES_AT: ${{ steps.deployment.outputs.preview_expires_at }}
           LIVE_URL: ${{ steps.deployment.outputs.live_url }}
+          PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+          IS_REBUILD: ${{ inputs.IS_REBUILD }}
+      - name: Upload public result metadata
+        id: metadata-artifact
+        if: ${{ always() && steps.metadata.outputs.path != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.metadata.outputs.name }}
+          path: ${{ steps.metadata.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+    outputs:
+      artifact_id: ${{ steps.metadata-artifact.outputs.artifact-id }}
+  journal:
+    name: Record deployment journal
+    needs: bnd
+    if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == inputs.JOURNAL_REPO && needs.bnd.outputs.artifact_id != '' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deployment-journal-${{ github.repository }}-${{ inputs.APP_NAME }}
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Find public result artifact
+        id: result-artifact
+        uses: vezham/vx-deployer/.github/actions/deployment/read-deployment-result@timeline
+        with:
+          ARTIFACT_ID: ${{ needs.bnd.outputs.artifact_id }}
+      - name: Read public result metadata
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ${{ runner.temp }}/deployment-result
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+          name: ${{ steps.result-artifact.outputs.name }}
+      - name: action | append deployment journal
+        if: ${{ always() }}
+        uses: vezham/vx-deployer/.github/actions/deployment/deployment-journal@timeline
+        with:
+          JOURNAL_REPO: ${{ env.DEPLOYMENT_JOURNAL_REPO }}
+          GIT_REPO: ${{ env.REPO }}
+          APP_NAME: ${{ env.VX_APP_NAME }}
+          APP_ENV: ${{ inputs.TRACK_ENV }}
           GITHUB_TOKEN: ${{ github.token }}
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
+          JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
+          IS_REBUILD: ${{ inputs.IS_REBUILD }}
+          RESULT_FILE: ${{ runner.temp }}/deployment-result/result.json

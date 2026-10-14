@@ -36,5 +36,14 @@ latest successful SHA for each Production target.
 
 The resolver merges `values` and `secret_values` from defaults,
 app, default environment, app environment and target, in that order. It outputs public
-values and secret names, never secret contents. `deployments` contains `{app, target}`
+values and secret names, never secret contents. `deployments` contains `{app, target, category}`
 pairs for category scheduling. See the controller registry README for configuration.
+
+## Fast journal lookup
+
+`JOURNAL_ISSUE` supplies the known app issue from scheduler discovery. The latest
+successful SHA comes from the issue body's current-state index. The returned
+`journal_issue` is forwarded to the recorder. The controller's resolver job holds
+the same per-app journal lock as the recording job, allowing one-time legacy
+bootstrap and interrupted-write recovery. Missing Production success skips the
+rebuild without substituting a branch. Promotion order validation remains enabled.

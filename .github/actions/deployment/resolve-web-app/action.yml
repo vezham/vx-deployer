@@ -1,5 +1,5 @@
 name: Resolve web app settings
-description: Read app settings or discover category apps from a versioned deployment registry
+description: Read app settings or discover scheduled deployments across all categories
 
 inputs:
   CONFIG_REPO:
@@ -12,7 +12,7 @@ inputs:
     description: Registry YAML path
     default: .github/config/web-apps.yaml
   APP:
-    description: App ID; provide APP or CATEGORY
+    description: App ID; select APP, CATEGORY or ALL_APPS
   CATEGORY:
     description: Category to list for scheduled rebuilds
   CALLER:
@@ -25,10 +25,16 @@ inputs:
   PRODUCTION_TARGET:
     description: App-specific Production target; empty uses the single default deployment
     default: ''
+  ALL_APPS:
+    description: Discover all enabled registry apps and Production targets
+    default: 'false'
+  JOURNAL_REPO:
+    description: Optional journal lookup repository for scheduled batches; omit for app resolution
+    default: ''
 
 outputs:
   apps:
-    description: JSON array of enabled category app IDs
+    description: JSON array of enabled app IDs in the selected discovery scope
     value: ${{ steps.resolve.outputs.apps }}
   app:
     description: Application ID
@@ -61,7 +67,7 @@ outputs:
     description: TVA source branch; promotions resolve a SHA separately
     value: ${{ steps.resolve.outputs.git_ref }}
   deployments:
-    description: JSON array of app and Production target pairs
+    description: JSON array of app, Production target and category entries
     value: ${{ steps.resolve.outputs.deployments }}
   production_target:
     description: Resolved Production target
@@ -72,6 +78,9 @@ outputs:
   secret_values:
     description: JSON build variable to secret name references
     value: ${{ steps.resolve.outputs.secret_values }}
+  batches:
+    description: JSON batches of up to 100 scheduled targets with journal issue references
+    value: ${{ steps.resolve.outputs.batches }}
 
 runs:
   using: composite
@@ -109,6 +118,8 @@ runs:
         APP_ENV: ${{ inputs.APP_ENV }}
         PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
         CALLER_REPO: ${{ inputs.CALLER != '' && github.repository || '' }}
+        ALL_APPS: ${{ inputs.ALL_APPS }}
+        JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

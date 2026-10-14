@@ -1,0 +1,34 @@
+name: scheduled web apps | batch
+on:
+  workflow_call:
+    inputs:
+      DEPLOYMENTS:
+        required: true
+        type: string
+jobs:
+  prepare:
+    name: Validate scheduled batch
+    runs-on: ubuntu-latest
+    outputs:
+      deployments: ${{ steps.batch.outputs.deployments }}
+    steps:
+      - id: batch
+        uses: vezham/vx-deployer/.github/actions/deployment/prepare-scheduled-batch@timeline
+        with:
+          DEPLOYMENTS: ${{ inputs.DEPLOYMENTS }}
+  production:
+    name: 🕒 ${{ matrix.category }} | ${{ matrix.app }} | production${{ matrix.target != 'default' && format(' | {0}', matrix.target) || '' }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.deployments) }}
+    uses: vezham/vx-fe-deployer/.github/workflows/web-app.yml@timeline
+    secrets: inherit
+    with:
+      APP: ${{ matrix.app }}
+      APP_ENV: production
+      USE_LATEST_PRODUCTION: true
+      PRODUCTION_TARGET: ${{ matrix.target }}
+      JOURNAL_ISSUE: ${{ matrix.journal_issue || '' }}
