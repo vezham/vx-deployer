@@ -102,12 +102,13 @@ runs:
         echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
         echo "overall_label=$OVERALL_STATUS" >> "$GITHUB_OUTPUT"
 
-    - name: 💬 Comment on Commit
+    - name: 🟠 · 💬 Update summary on commit
       if: always()
-      uses: peter-evans/commit-comment@v3
+      uses: vezham/vx-deployer/.github/actions/common/comment-ci-summary@timeline
       with:
         token: ${{ inputs.token }}
-        body-path: ${{ steps.gen.outputs.summary_path }}
+        summary_path: ${{ steps.gen.outputs.summary_path }}
+        kind: release
 
     - name: 💬 Post Summary to PR (if available)
       if: github.event.pull_request.number != ''
