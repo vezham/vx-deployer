@@ -1,4 +1,5 @@
 name: 🏗️ Web app • Build & deploy
+
 on:
   workflow_call:
     secrets:
@@ -61,6 +62,7 @@ on:
         description: Registry category for monthly history
         required: true
         type: string
+
 env:
   REPO: ${{ inputs.GIT_REPO }}
   BRANCH: ${{ inputs.GIT_REF }}
@@ -69,6 +71,7 @@ env:
   VX_APP_NAME: ${{ inputs.APP_NAME }}
   DEPLOYMENT_JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
   NX_NO_CLOUD: 'true'
+
 jobs:
   bnd:
     name: 🏗️ Build & deploy • ${{ inputs.APP_NAME }}
@@ -204,6 +207,7 @@ jobs:
           retention-days: 7
     outputs:
       artifact_id: ${{ steps.metadata-artifact.outputs.artifact-id }}
+
   monthly:
     name: 📅 Prepare monthly history
     needs: bnd
@@ -241,6 +245,7 @@ jobs:
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
           IS_REBUILD: ${{ inputs.IS_REBUILD }}
           RESULT_FILE: ${{ runner.temp }}/deployment-result/result.json
+
   journal:
     name: 🧾 Record deployment history & state
     needs:

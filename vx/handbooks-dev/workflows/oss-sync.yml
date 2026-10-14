@@ -1,6 +1,15 @@
 # @vx/INFO: @vx/ci
 name: sync with upstream
 
+run-name: >
+  🔄 Sync • ${{
+      github.event_name == 'schedule' && '🕒 Scheduled' ||
+      github.event_name == 'workflow_dispatch' && '⚡ Trails' ||
+      github.event.head_commit.message ||
+      github.event.workflow_run.head_commit.message ||
+      github.ref_name
+  }} - by @${{ github.actor || 'vx/ci' }}
+
 on:
   schedule:
     - cron: '0 23 * * 2,5' # every Wed, Sat at 04:30 AM IST
@@ -11,16 +20,6 @@ on:
       - '.github/workflows/sync.yml'
     #   - ".changeset/**"
     #   - "packages/**"
-
-run-name: >
-  🔄 Sync • ${{
-      github.event_name == 'schedule' && '🕒 Scheduled' ||
-      github.event_name == 'workflow_dispatch' && '⚡ Trails' ||
-      github.event.head_commit.message ||
-      github.event.workflow_run.head_commit.message ||
-      github.ref_name
-  }}
-  - by @${{ github.actor || 'vx/ci' }}
 
 concurrency:
   group: sync-${{ github.workflow }}-${{ github.ref }}
@@ -140,14 +139,14 @@ jobs:
           # author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           # committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
 
-      # - name: 🧪 Wait for checks before auto-merge
-      #   if: steps.cpr.outputs.pull-request-number != ''
-      #   uses: juliangruber/wait-for-checks-action@v1
-      #   with:
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     ref: refs/pull/${{ steps.cpr.outputs.pull-request-number }}/merge
-      #     check-regexp: "build|test|lint"
-      #     timeout: 900 # 15 minutes
+          # - name: 🧪 Wait for checks before auto-merge
+          #   if: steps.cpr.outputs.pull-request-number != ''
+          #   uses: juliangruber/wait-for-checks-action@v1
+          #   with:
+          #     token: ${{ secrets.GITHUB_TOKEN }}
+          #     ref: refs/pull/${{ steps.cpr.outputs.pull-request-number }}/merge
+          #     check-regexp: "build|test|lint"
+          #     timeout: 900 # 15 minutes
 
       - name: 🟠 · ⛭ Enable Auto-Merge
         if: steps.cpr.outputs.pull-request-number != '' && env.SKIP_PR != 'true'

@@ -1,6 +1,21 @@
 # @vx/INFO: @vx/ci
 name: release
 
+run-name: >
+  🚀 Release • ${{
+    github.event_name == 'schedule'
+      && '🕒 Scheduled'
+      || github.event_name == 'workflow_dispatch'
+      && github.event.inputs.version == ''
+      && '⚡ Trails'
+      || github.event.inputs.version
+      && format('📦 {0}', github.event.inputs.version)
+      || github.event.head_commit.message
+      || github.event.workflow_run
+      && github.event.workflow_run.head_commit.message
+      || github.ref_name
+  }} - by @${{ github.actor || 'vx/ci' }}
+
 on:
   schedule:
     - cron: '30 23 * * 2,5' # every Wed, Sat at 05:00 AM IST
@@ -18,22 +33,6 @@ on:
         default: ''
   release:
     types: [published]
-
-run-name: >
-  🚀 Release • ${{
-    github.event_name == 'schedule'
-      && '🕒 Scheduled'
-      || github.event_name == 'workflow_dispatch'
-      && github.event.inputs.version == ''
-      && '⚡ Trails'
-      || github.event.inputs.version
-      && format('📦 {0}', github.event.inputs.version)
-      || github.event.head_commit.message
-      || github.event.workflow_run
-      && github.event.workflow_run.head_commit.message
-      || github.ref_name
-  }}
-  - by @${{ github.actor || 'vx/ci' }}
 
 concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}

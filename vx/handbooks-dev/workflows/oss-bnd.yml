@@ -1,17 +1,6 @@
 # @vx/INFO: @vx/ci
 name: BnD
 
-on:
-  workflow_dispatch:
-  pull_request:
-    types: [closed]
-  push:
-    branches: [timeline]
-    paths:
-      - '.github/workflows/bnd.yml'
-      - '.changeset/**'
-      - 'packages/**'
-
 run-name: >
   📦 BnD • ${{
       github.event_name == 'schedule' && '🕒 Scheduled' ||
@@ -26,8 +15,18 @@ run-name: >
       github.event.head_commit.message ||
       github.event.workflow_run && github.event.workflow_run.head_commit.message ||
       github.ref_name
-  }}
-  - by @${{ github.actor || 'vx/ci' }}
+  }} - by @${{ github.actor || 'vx/ci' }}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [closed]
+  push:
+    branches: [timeline]
+    paths:
+      - '.github/workflows/bnd.yml'
+      - '.changeset/**'
+      - 'packages/**'
 
 concurrency:
   group: bnd-${{ github.workflow }}-${{ github.ref }}

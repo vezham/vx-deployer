@@ -1,6 +1,15 @@
 # @vx/INFO: @vx/ci
 name: QA
 
+run-name: >
+  🧪 QA • ${{
+      github.event_name == 'schedule' && '🕒 Scheduled' ||
+      github.event_name == 'workflow_dispatch' && '⚡ Trails' ||
+      github.event.head_commit.message ||
+      github.event.workflow_run && github.event.workflow_run.head_commit.message ||
+      github.ref_name
+  }}  - by @${{ github.actor || 'vx/ci' }}
+
 on:
   schedule:
     - cron: '30 22 * * 2,5' # every Wed, Sat at 04:00 AM IST
@@ -13,16 +22,6 @@ on:
     #   - '.github/workflows/qa.yml'
     #   - '.changeset/**'
     #   - 'packages/**'
-
-run-name: >
-  🧪 QA • ${{
-      github.event_name == 'schedule' && '🕒 Scheduled' ||
-      github.event_name == 'workflow_dispatch' && '⚡ Trails' ||
-      github.event.head_commit.message ||
-      github.event.workflow_run && github.event.workflow_run.head_commit.message ||
-      github.ref_name
-  }} 
-  - by @${{ github.actor || 'vx/ci' }}
 
 concurrency:
   group: qa-${{ github.workflow }}-${{ github.ref }}

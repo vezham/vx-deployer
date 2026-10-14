@@ -1,10 +1,12 @@
 name: 🗂️ Scheduled web apps • Batch
+
 on:
   workflow_call:
     inputs:
       DEPLOYMENTS:
         required: true
         type: string
+
 jobs:
   prepare:
     name: ✅ Validate scheduled batch
@@ -17,6 +19,7 @@ jobs:
         uses: vezham/vx-deployer/.github/actions/deployment/prepare-scheduled-batch@timeline
         with:
           DEPLOYMENTS: ${{ inputs.DEPLOYMENTS }}
+
   production:
     name: 🕒 ${{ matrix.category }} | ${{ matrix.app }} | production${{ matrix.target != 'default' && format(' | {0}', matrix.target) || '' }}
     needs: prepare
