@@ -26,7 +26,7 @@ For local generation, using a sibling `vx-deployer` checkout:
 ```sh
 bash ../vx-deployer/.github/actions/deployment/resolve-web-app/bin/setup.sh
 node ../vx-deployer/.github/actions/deployment/resolve-web-app/bin/sync-choices.cjs \
-  .github/config/web-apps.yaml .github/workflows/-promote.yml write
+  .github/config/web-apps.yaml .github/workflows/promote.yml write
 ```
 
 Commit the regenerated workflow with the registry change. GitHub's dispatch form

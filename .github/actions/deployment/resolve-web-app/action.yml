@@ -32,6 +32,10 @@ inputs:
     description: Optional journal lookup repository for scheduled batches; omit for app resolution
     default: ''
 
+  SCHEDULED_ONLY:
+    description: Filter discovery by app schedules on the workflow run creation date in IST
+    default: 'false'
+
 outputs:
   apps:
     description: JSON array of enabled app IDs in the selected discovery scope
@@ -120,6 +124,7 @@ runs:
         CALLER_REPO: ${{ inputs.CALLER != '' && github.repository || '' }}
         ALL_APPS: ${{ inputs.ALL_APPS }}
         JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}
+        SCHEDULED_ONLY: ${{ inputs.SCHEDULED_ONLY }}
       with:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         script: |

@@ -103,3 +103,19 @@ app/target deployment lock. No journal means the app waits for another run.
 Batch count and output size are checked before publishing outputs. Normal app and
 TVA resolution do not query the journal. API quota errors wait for reset/retry-after
 with bounded retries; permission failures propagate immediately.
+
+## Calendar filtering
+
+`SCHEDULED_ONLY: 'true'` applies per-app `schedule` rules during `ALL_APPS` or
+`CATEGORY` discovery. `defaults.schedule` is required in this mode; app overrides
+replace cadence fields and inherit the enabled flag independently. Daily, weekly
+(lowercase weekday lists) and monthly (day 1–31) rules are supported. Invalid rules
+fail registry parsing, including when a rule is disabled. Disabled schedules do not
+remove apps from normal discovery, TVA resolution or manual promotion.
+
+The resolver reads the current run's `created_at` using the caller's Actions read
+permission, and converts it to `Asia/Kolkata`. Manual dispatch and reruns use that
+same original run date. Filtering happens before journal lookup and batch creation;
+all Production targets of a due app are included. Monthly dates missing from a
+month are skipped. There is no missed-run catch-up. Without `SCHEDULED_ONLY`, app
+resolution and unfiltered registry discovery keep their existing behavior.

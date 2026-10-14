@@ -1,6 +1,12 @@
 const assert = require('node:assert/strict')
 const { test } = require('node:test')
-const { parseCatalog, resolveWebApp, listWebApps, main } = require('./main.cjs')
+const {
+  parseCatalog,
+  getCatalogApps,
+  resolveWebApp,
+  listWebApps,
+  main
+} = require('./main.cjs')
 const yaml = require('js-yaml')
 const { resolveSource } = require('../../prepare-web-deployment/bin/main.cjs')
 
@@ -969,4 +975,108 @@ test('all-app discovery validates enabled entries before publishing a matrix', a
   const input = discoveryApi(config, { ALL_APPS: 'true' })
   await assert.rejects(main(input), /credential secret/)
   assert.deepEqual(input.outputs, {})
+})
+
+test('scheduled action filters due apps before journal lookup and batching', async () => {
+  const config = catalog()
+  config.defaults.schedule = {
+    frequency: 'weekly',
+    days: ['mon', 'thu', 'sat']
+  }
+  const template = config['apps-cdns']['test-app']
+  config.apps = {
+    daily: { ...structuredClone(template), schedule: { frequency: 'daily' } },
+    monthly: {
+      ...structuredClone(template),
+      schedule: { frequency: 'monthly', day: 1 }
+    },
+    disabled: { ...structuredClone(template), schedule: { enabled: false } }
+  }
+  const input = discoveryApi(config, {
+    ALL_APPS: 'true',
+    SCHEDULED_ONLY: 'true',
+    JOURNAL_REPO: 'example/deployer',
+    GITHUB_REPOSITORY: 'example/deployer',
+    GITHUB_RUN_ID: '123'
+  })
+  let directoryCalls = 0
+  input.github.rest.actions = {
+    getWorkflowRun: async () => ({
+      data: { created_at: '2026-10-13T23:30:00Z' }
+    })
+  }
+  input.github.rest.issues = { listForRepo: {} }
+  input.github.paginate = async () => {
+    directoryCalls++
+    return [
+      { number: 42, body: '<!-- vx-deployment-journal:example/apps:daily -->' }
+    ]
+  }
+  await main(input)
+  assert.equal(directoryCalls, 1)
+  assert.deepEqual(JSON.parse(input.outputs.apps), ['daily'])
+  assert.deepEqual(
+    JSON.parse(input.outputs.batches).flatMap(batch =>
+      JSON.parse(batch.deployments)
+    ),
+    [{ app: 'daily', target: 'default', category: 'apps', journal_issue: '42' }]
+  )
+})
+test('scheduled action returns empty batches when no apps are due', async () => {
+  const config = catalog()
+  config.defaults.schedule = { frequency: 'monthly', day: 1 }
+  const input = discoveryApi(config, {
+    ALL_APPS: 'true',
+    SCHEDULED_ONLY: 'true',
+    GITHUB_REPOSITORY: 'example/deployer',
+    GITHUB_RUN_ID: '123'
+  })
+  input.github.rest.actions = {
+    getWorkflowRun: async () => ({
+      data: { created_at: '2026-10-13T23:30:00Z' }
+    })
+  }
+  await main(input)
+  assert.equal(input.outputs.batches, '[]')
+})
+test('schedule disabled apps still resolve for TVA and manual promotion', () => {
+  const config = catalog()
+  config.defaults.schedule = { frequency: 'weekly', days: ['mon'] }
+  config['apps-cdns']['test-app'].schedule = { enabled: false }
+  assert.equal(
+    resolveWebApp(config, {
+      app: 'test-app',
+      caller: 'timeline',
+      callerRepository: 'example/source'
+    }).track_environment,
+    'tva'
+  )
+  assert.equal(
+    resolveWebApp(config, { app: 'test-app', environment: 'production' })
+      .track_environment,
+    'production'
+  )
+  assert.deepEqual(listWebApps(config), ['test-app'])
+})
+for (const request of [
+  { SCHEDULED_ONLY: 'yes', ALL_APPS: 'true' },
+  { SCHEDULED_ONLY: 'true', APP: 'test-app' }
+])
+  test(
+    'invalid schedule selectors fail before reading the registry: ' +
+      JSON.stringify(request),
+    async () => {
+      const input = discoveryApi(catalog(), request)
+      await assert.rejects(main(input), /SCHEDULED_ONLY/)
+      assert.deepEqual(input.requests, [])
+      assert.deepEqual(input.outputs, {})
+    }
+  )
+test('invalid default and app schedules fail catalog validation', () => {
+  const config = catalog()
+  config.defaults.schedule = { frequency: 'weekly', days: ['monday'] }
+  assert.throws(() => getCatalogApps(config), /Weekly/)
+  config.defaults.schedule = { frequency: 'daily' }
+  config['apps-cdns']['test-app'].schedule = { frequency: 'monthly', day: 32 }
+  assert.throws(() => getCatalogApps(config), /Monthly/)
 })

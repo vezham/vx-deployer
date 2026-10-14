@@ -1,6 +1,11 @@
 'use strict'
 
 const yaml = require('js-yaml')
+const {
+  resolveSchedule,
+  selectDueDeployments,
+  readRunTimestamp
+} = require('./calendar.cjs')
 const { respectRateLimits } = require('../../deployment-journal/bin/api.cjs')
 const { buildBatches, discoverJournalIssues } = require('./schedule.cjs')
 const { getPromotionPath } = require('../../validate-promotion/bin/policy.cjs')
@@ -31,6 +36,8 @@ const getCatalogApps = catalog => {
       'Expected a grouped schema-2 web app registry with defaults'
     )
 
+  if (catalog.defaults.schedule !== undefined)
+    resolveSchedule(catalog.defaults.schedule)
   const apps = Object.create(null)
   let groupCount = 0
   for (const [group, entries] of Object.entries(catalog)) {
@@ -47,6 +54,8 @@ const getCatalogApps = catalog => {
         throw new Error(
           `Remove category from ${app}; it is derived from ${group}`
         )
+      if (config.schedule !== undefined)
+        resolveSchedule(catalog.defaults.schedule, config.schedule)
       apps[app] = { ...config, category: groups[group] }
     }
   }
@@ -237,6 +246,11 @@ const main = async ({ github, core, env = process.env }) => {
     ).length !== 1
   )
     throw new Error('Provide exactly one of APP, CATEGORY or ALL_APPS=true')
+  const scheduledOnly = env.SCHEDULED_ONLY || 'false'
+  if (!['true', 'false'].includes(scheduledOnly))
+    throw new Error('SCHEDULED_ONLY must be true or false')
+  if (scheduledOnly === 'true' && env.APP)
+    throw new Error('SCHEDULED_ONLY requires discovery, not APP')
   const [owner, repo] = repository.split('/')
   const { data } = await github.rest.repos.getContent({
     owner,
@@ -255,15 +269,31 @@ const main = async ({ github, core, env = process.env }) => {
     Buffer.from(data.content, 'base64').toString('utf8')
   )
   if (env.CATEGORY || allApps === 'true') {
-    const deployments = listProductionDeployments(catalog, env.CATEGORY || '')
-    const scheduled = env.JOURNAL_REPO
-      ? await discoverJournalIssues({
-          github,
-          journalRepository: env.JOURNAL_REPO,
-          deployments,
-          apps: getCatalogApps(catalog)
-        })
-      : deployments
+    let deployments = listProductionDeployments(catalog, env.CATEGORY || '')
+    if (scheduledOnly === 'true') {
+      if (catalog.defaults.schedule === undefined)
+        throw new Error('Scheduled discovery requires defaults.schedule')
+      const timestamp = await readRunTimestamp({ github, env })
+      const selection = selectDueDeployments({
+        defaults: catalog.defaults.schedule,
+        apps: getCatalogApps(catalog),
+        deployments,
+        timestamp
+      })
+      deployments = selection.deployments
+      core.info?.(
+        `Schedule date ${selection.date} (Asia/Kolkata): ${deployments.length} targets due`
+      )
+    }
+    const scheduled =
+      env.JOURNAL_REPO && deployments.length
+        ? await discoverJournalIssues({
+            github,
+            journalRepository: env.JOURNAL_REPO,
+            deployments,
+            apps: getCatalogApps(catalog)
+          })
+        : deployments
     const batches = buildBatches(scheduled)
     core.setOutput(
       'apps',
