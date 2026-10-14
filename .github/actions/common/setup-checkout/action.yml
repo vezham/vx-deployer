@@ -1,4 +1,4 @@
-name: Setup checkout
+name: 🧰 Checkout repository
 description: Sets up repo & branch
 
 inputs:
@@ -17,7 +17,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: checkout | ${{ inputs.GIT_REPO }}@${{ inputs.GIT_BRANCH }}
+    - name: 🟠 · 🧰 Checkout • ${{ inputs.GIT_REPO }}@${{ inputs.GIT_BRANCH }}
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.GIT_REPO }}

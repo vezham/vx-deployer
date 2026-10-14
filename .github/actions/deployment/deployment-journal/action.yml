@@ -1,4 +1,4 @@
-name: Append deployment journal
+name: 🧾 Record deployment journal
 description: Record a deployment in monthly category history and update its app state index
 inputs:
   JOURNAL_REPO:
@@ -68,7 +68,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Append completed deployment
+    - name: 🔵 · 🧾 Append monthly history & update app state
       id: journal
       uses: actions/github-script@v7
       env:

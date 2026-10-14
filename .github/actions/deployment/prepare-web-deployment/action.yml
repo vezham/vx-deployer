@@ -1,4 +1,4 @@
-name: Prepare web deployment source
+name: 🔎 Prepare deployment source
 description: Select a TVA branch or validate a manual or journal-based promotion SHA
 
 inputs:
@@ -48,7 +48,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Validate source selection
+    - name: 🔵 · ✅ Validate source selection
       id: plan
       uses: actions/github-script@v7
       env:
@@ -68,7 +68,7 @@ runs:
           });
           for (const [name, value] of Object.entries(plan)) core.setOutput(name, value);
 
-    - name: Read latest production deployment
+    - name: 🟠 · 📖 Read latest Production deployment
       id: production
       if: ${{ inputs.USE_LATEST_PRODUCTION == 'true' }}
       uses: vezham/vx-deployer/.github/actions/deployment/read-deployment-journal@timeline
@@ -82,7 +82,7 @@ runs:
         JOURNAL_ISSUE: ${{ inputs.JOURNAL_ISSUE }}
         UPDATE_INDEX: 'true'
 
-    - name: Summarize scheduled source selection
+    - name: 🔵 · 🧾 Summarize scheduled source
       if: ${{ inputs.USE_LATEST_PRODUCTION == 'true' }}
       uses: actions/github-script@v7
       env:
@@ -104,7 +104,7 @@ runs:
           if (process.env.JOURNAL_URL) core.summary.addLink('Deployment journal', process.env.JOURNAL_URL);
           await core.summary.write();
 
-    - name: Authenticate promotion source repository
+    - name: 🟠 · 🔐 Authenticate promotion source
       id: source-auth
       if: ${{ steps.plan.outputs.needs_validation == 'true' && (inputs.USE_LATEST_PRODUCTION != 'true' || steps.production.outputs.found == 'true') }}
       uses: vezham/vx-deployer/.github/actions/common/setup-source-auth@timeline
@@ -114,7 +114,7 @@ runs:
         APP_PRIVATE_KEY: ${{ inputs.APP_PRIVATE_KEY }}
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
 
-    - name: Validate promotion order
+    - name: 🟠 · ✅ Validate promotion order
       id: commit
       if: ${{ steps.plan.outputs.needs_validation == 'true' && (inputs.USE_LATEST_PRODUCTION != 'true' || steps.production.outputs.found == 'true') }}
       uses: vezham/vx-deployer/.github/actions/deployment/validate-promotion@timeline

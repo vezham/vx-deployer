@@ -1,4 +1,4 @@
-name: Track promotion progress
+name: 🧾 Track promotion progress
 description: Maintain one environment deployment tracker on the source commit
 
 inputs:
@@ -44,7 +44,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Update source commit tracker
+    - name: 🔵 · 🧾 Update source commit tracker
       id: comment
       uses: actions/github-script@v7
       env:

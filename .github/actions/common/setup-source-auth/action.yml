@@ -1,4 +1,4 @@
-name: Authenticate source repository
+name: 🔐 Authenticate source repository
 description: Use the built-in token locally or generate a GitHub App token for another repository
 
 inputs:
@@ -23,7 +23,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Select source authentication
+    - name: 🔵 · 🔐 Select source authentication
       id: source
       uses: actions/github-script@v7
       env:
@@ -52,7 +52,7 @@ runs:
             core.setOutput('local_token', process.env.LOCAL_TOKEN);
           }
 
-    - name: Generate source repository installation token
+    - name: 🟠 · 🔑 Create source installation token
       id: installation
       if: ${{ steps.source.outputs.requires_app == 'true' }}
       uses: actions/create-github-app-token@v3

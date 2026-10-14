@@ -1,4 +1,4 @@
-name: Read latest successful deployment
+name: 📖 Read deployment state
 description: Resolve the source SHA of the most recent successful environment deployment
 
 inputs:
@@ -59,7 +59,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Resolve current environment SHA
+    - name: 🔵 · 🔎 Resolve latest successful SHA
       id: latest
       uses: actions/github-script@v7
       env:

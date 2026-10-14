@@ -1,4 +1,4 @@
-name: Prepare scheduled deployment batch
+name: 🗂️ Prepare scheduled batch
 description: Validate a bounded app and Production-target batch
 inputs:
   DEPLOYMENTS:
@@ -11,7 +11,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - id: batch
+    - name: 🔵 · ✅ Validate deployment batch
+      id: batch
       uses: actions/github-script@v7
       env:
         BATCH_MODULE: ${{ github.action_path }}/../resolve-web-app/bin/schedule.cjs

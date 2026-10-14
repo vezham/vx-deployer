@@ -1,4 +1,4 @@
-name: scheduled web apps | batch
+name: 🗂️ Scheduled web apps • Batch
 on:
   workflow_call:
     inputs:
@@ -7,12 +7,13 @@ on:
         type: string
 jobs:
   prepare:
-    name: Validate scheduled batch
+    name: ✅ Validate scheduled batch
     runs-on: ubuntu-latest
     outputs:
       deployments: ${{ steps.batch.outputs.deployments }}
     steps:
-      - id: batch
+      - name: 🟠 · ✅ Validate scheduled deployment batch
+        id: batch
         uses: vezham/vx-deployer/.github/actions/deployment/prepare-scheduled-batch@timeline
         with:
           DEPLOYMENTS: ${{ inputs.DEPLOYMENTS }}

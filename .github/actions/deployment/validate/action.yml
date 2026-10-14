@@ -1,4 +1,4 @@
-name: Validate deployment settings
+name: ✅ Validate deployment settings
 description: Validate the deployment environment and release channel before building or deploying.
 
 inputs:
@@ -13,7 +13,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Validate deployment settings
+    - name: 🔵 · ✅ Validate environment & release channel
       id: validate
       shell: bash
       env:

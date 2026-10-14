@@ -1,4 +1,4 @@
-name: Capture deployment result
+name: 📦 Capture deployment result
 description: Write validated public result metadata for the serialized journal job
 inputs:
   GIT_REPO:
@@ -34,7 +34,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - id: result
+    - name: 🔵 · 📦 Capture public deployment metadata
+      id: result
       uses: actions/github-script@v7
       env:
         RESULT_CAPTURE_MODULE: ${{ github.action_path }}/bin/main.cjs

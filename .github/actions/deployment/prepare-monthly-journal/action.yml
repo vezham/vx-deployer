@@ -1,4 +1,4 @@
-name: Prepare monthly deployment journal
+name: 📅 Prepare monthly history
 description: Locate or create monthly category history under the category lock
 inputs:
   JOURNAL_REPO:
@@ -29,7 +29,8 @@ outputs:
 runs:
   using: composite
   steps:
-    - id: monthly
+    - name: 🔵 · 📅 Resolve monthly category issue
+      id: monthly
       uses: actions/github-script@v7
       env:
         JOURNAL_REPO: ${{ inputs.JOURNAL_REPO }}

@@ -1,4 +1,4 @@
-name: Resolve web app settings
+name: 🔎 Resolve web app settings
 description: Read app settings or discover scheduled deployments across all categories
 inputs:
   CONFIG_REPO:
@@ -88,23 +88,23 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Resolve pnpm package path
+    - name: 🔵 · 📂 Resolve pnpm package path
       id: package-path
       shell: bash
       env:
         PACKAGE_PATH_SCRIPT: ${{ github.action_path }}/bin/resolve-package-path.cjs
       run: node "$PACKAGE_PATH_SCRIPT"
-    - name: Setup resolver pnpm
+    - name: 🟠 · 🧩 Setup resolver pnpm
       uses: pnpm/action-setup@v4
       with:
         package_json_file: ${{ steps.package-path.outputs.package_json_file }}
         run_install: false
-    - name: Install resolver dependencies
+    - name: 🔵 · 📥 Install resolver dependencies
       shell: bash
       env:
         RESOLVER_SETUP: ${{ github.action_path }}/bin/setup.sh
       run: bash "$RESOLVER_SETUP"
-    - name: Read web app registry
+    - name: 🔵 · 📖 Read registry & select deployments
       id: resolve
       uses: actions/github-script@v7
       env:

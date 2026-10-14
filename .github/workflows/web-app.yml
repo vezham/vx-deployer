@@ -1,4 +1,4 @@
-name: web-app | build and deploy
+name: 🏗️ Web app • Build & deploy
 on:
   workflow_call:
     secrets:
@@ -71,12 +71,13 @@ env:
   NX_NO_CLOUD: 'true'
 jobs:
   bnd:
+    name: 🏗️ Build & deploy • ${{ inputs.APP_NAME }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ${{ env.ENTRY_POINT }}
     steps:
-      - name: Validate rebuild mode
+      - name: 🔵 · ✅ Validate rebuild mode
         uses: actions/github-script@v7
         env:
           TRACK_ENV: ${{ inputs.TRACK_ENV }}
@@ -85,32 +86,32 @@ jobs:
           script: |
             if (!['tva', 'dev', 'qa', 'preview', 'production'].includes(process.env.TRACK_ENV)) throw new Error('Invalid tracking environment');
             if (process.env.IS_REBUILD === 'true' && process.env.TRACK_ENV !== 'production') throw new Error('Routine rebuilds require Production');
-      - name: Validate deployment settings
+      - name: 🟠 · ✅ Validate deployment settings
         uses: vezham/vx-deployer/.github/actions/deployment/validate@timeline
         with:
           APP_ENV: ${{ inputs.APP_ENV }}
           RELEASE_CHANNEL: ${{ inputs.RELEASE_CHANNEL }}
-      - name: action | authenticate source repository
+      - name: 🟠 · 🔐 Authenticate source repository
         id: source-auth
         uses: vezham/vx-deployer/.github/actions/common/setup-source-auth@timeline
         with:
           GIT_REPO: ${{ env.REPO }}
           APP_CLIENT_ID: ${{ vars.SOURCE_APP_CLIENT_ID }}
           APP_PRIVATE_KEY: ${{ secrets.SOURCE_APP_PRIVATE_KEY }}
-      - name: action | checkout | ${{ env.REPO }}@${{ env.BRANCH }}
+      - name: 🟠 · 🧰 Checkout • ${{ env.REPO }}@${{ env.BRANCH }}
         uses: vezham/vx-deployer/.github/actions/common/setup-checkout@timeline
         with:
           GIT_REPO: ${{ env.REPO }}
           GIT_BRANCH: ${{ env.BRANCH }}
           GIT_TOKEN: ${{ steps.source-auth.outputs.token }}
-      - name: Resolve deployed source SHA
+      - name: 🔵 · 🔎 Resolve deployed SHA & start time
         id: source
         shell: bash
         working-directory: ${{ github.workspace }}
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-      - name: action | track deployment started
+      - name: 🟠 · 🧾 Track deployment started
         continue-on-error: true
         uses: vezham/vx-deployer/.github/actions/deployment/comment-promotion@timeline
         with:
@@ -122,7 +123,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
         if: ${{ !inputs.IS_REBUILD }}
-      - name: setup | app build configuration
+      - name: 🟠 · ⚙️ Configure app build
         uses: vezham/vx-deployer/.github/actions/deployment/configure-web-app@timeline
         with:
           APP_NAME: ${{ inputs.APP_NAME }}
@@ -141,15 +142,15 @@ jobs:
         with:
           APP_PATH: ${{ inputs.APP_PATH }}
           HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
-      - name: action | gen-build
+      - name: 🟠 · 🏗️ Generate build
         uses: vezham/vx-deployer/.github/actions/nx/gen-build@timeline
-      - name: action | ci-setup | firebase
+      - name: 🟠 · 🔥 Deploy to Firebase
         id: deployment
         uses: vezham/vx-deployer/.github/actions/cloud-providers/firebase@timeline
         with:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           COMMENT_DEPLOYMENT: 'false'
-      - name: Capture deployment result
+      - name: 🔵 · 🧾 Capture deployment status
         id: result
         if: ${{ always() && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
         shell: bash
@@ -159,7 +160,7 @@ jobs:
         run: |
           echo "status=$DEPLOYMENT_STATUS" >> "$GITHUB_OUTPUT"
           echo "finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-      - name: action | track deployment result
+      - name: 🟠 · 🧾 Track deployment result
         if: ${{ always() && !inputs.IS_REBUILD && steps.source-auth.outputs.token != '' && (steps.source.outputs.sha != '' || inputs.TRACK_ENV != 'tva') }}
         continue-on-error: true
         uses: vezham/vx-deployer/.github/actions/deployment/comment-promotion@timeline
@@ -174,7 +175,7 @@ jobs:
           LIVE_URL: ${{ steps.deployment.outputs.live_url }}
           GITHUB_TOKEN: ${{ steps.source-auth.outputs.token }}
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
-      - name: Capture public result metadata
+      - name: 🟠 · 📦 Capture public result metadata
         id: metadata
         if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == inputs.JOURNAL_REPO && steps.result.outputs.status != '' }}
         uses: vezham/vx-deployer/.github/actions/deployment/capture-deployment-result@timeline
@@ -192,7 +193,7 @@ jobs:
           PRODUCTION_TARGET: ${{ inputs.PRODUCTION_TARGET }}
           IS_REBUILD: ${{ inputs.IS_REBUILD }}
           CATEGORY: ${{ inputs.CATEGORY }}
-      - name: Upload public result metadata
+      - name: 🟠 · 📤 Upload public result metadata
         id: metadata-artifact
         if: ${{ always() && steps.metadata.outputs.path != '' }}
         uses: actions/upload-artifact@v4
@@ -204,7 +205,7 @@ jobs:
     outputs:
       artifact_id: ${{ steps.metadata-artifact.outputs.artifact-id }}
   monthly:
-    name: Prepare monthly history
+    name: 📅 Prepare monthly history
     needs: bnd
     if: ${{ always() && inputs.TRACK_ENV != 'tva' && github.repository == inputs.JOURNAL_REPO && needs.bnd.outputs.artifact_id != '' }}
     runs-on: ubuntu-latest
@@ -215,12 +216,12 @@ jobs:
     outputs:
       issue_number: ${{ steps.monthly.outputs.issue_number }}
     steps:
-      - name: Find public result artifact
+      - name: 🟠 · 🔎 Find public result artifact
         id: result-artifact
         uses: vezham/vx-deployer/.github/actions/deployment/read-deployment-result@timeline
         with:
           ARTIFACT_ID: ${{ needs.bnd.outputs.artifact_id }}
-      - name: Read public result metadata
+      - name: 🟠 · 📥 Download public result metadata
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
@@ -228,7 +229,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ github.run_id }}
           name: ${{ steps.result-artifact.outputs.name }}
-      - name: Prepare monthly category issue
+      - name: 🟠 · 📅 Prepare monthly category issue
         id: monthly
         uses: vezham/vx-deployer/.github/actions/deployment/prepare-monthly-journal@timeline
         with:
@@ -241,7 +242,7 @@ jobs:
           IS_REBUILD: ${{ inputs.IS_REBUILD }}
           RESULT_FILE: ${{ runner.temp }}/deployment-result/result.json
   journal:
-    name: Record deployment journal
+    name: 🧾 Record deployment history & state
     needs:
       - bnd
       - monthly
@@ -252,12 +253,12 @@ jobs:
       cancel-in-progress: false
       queue: max
     steps:
-      - name: Find public result artifact
+      - name: 🟠 · 🔎 Find public result artifact
         id: result-artifact
         uses: vezham/vx-deployer/.github/actions/deployment/read-deployment-result@timeline
         with:
           ARTIFACT_ID: ${{ needs.bnd.outputs.artifact_id }}
-      - name: Read public result metadata
+      - name: 🟠 · 📥 Download public result metadata
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
@@ -265,7 +266,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ github.run_id }}
           name: ${{ steps.result-artifact.outputs.name }}
-      - name: action | append deployment journal
+      - name: 🟠 · 🧾 Append monthly history & update app state
         if: ${{ always() }}
         uses: vezham/vx-deployer/.github/actions/deployment/deployment-journal@timeline
         with:
