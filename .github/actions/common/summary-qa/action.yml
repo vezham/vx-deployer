@@ -14,7 +14,7 @@ inputs:
     required: false
   lint_result:
     required: false
-  prettier_result:
+  format_result:
     required: false
   tests_result:
     required: false
@@ -51,7 +51,7 @@ runs:
         BUILD=$(display_status "${{ inputs.build_result }}")
         TYPES=$(display_status "${{ inputs.types_result }}")
         LINT=$(display_status "${{ inputs.lint_result }}")
-        PRETTIER=$(display_status "${{ inputs.prettier_result }}")
+        FORMAT=$(display_status "${{ inputs.format_result }}")
         TESTS=$(display_status "${{ inputs.tests_result }}")
         AUDIT_RAW="${{ inputs.audit_result }}"
         AUDIT=$(display_status "$AUDIT_RAW")
@@ -59,7 +59,7 @@ runs:
         E2E=$(display_status "$E2E_RAW")
 
         # Determine overall QA result
-        ALL_STATUS="$BUILD $TYPES $LINT $PRETTIER $TESTS"
+        ALL_STATUS="$BUILD $TYPES $LINT $FORMAT $TESTS"
         if [ -n "$AUDIT_RAW" ]; then
           ALL_STATUS="$ALL_STATUS $AUDIT"
         fi
@@ -91,7 +91,7 @@ runs:
           echo "| 🏗️ Build | $(result_icon "$BUILD") ($BUILD) |"
           echo "| 🧠 Types | $(result_icon "$TYPES") ($TYPES) |"
           echo "| 🧹 Lint | $(result_icon "$LINT") ($LINT) |"
-          echo "| 🎨 Prettier | $(result_icon "$PRETTIER") ($PRETTIER) |"
+          echo "| 🎨 Format | $(result_icon "$FORMAT") ($FORMAT) |"
           echo "| 🧪 Tests | $(result_icon "$TESTS") ($TESTS) |"
           if [ -n "$AUDIT_RAW" ]; then
             echo "| 🔍 Audit | $(result_icon "$AUDIT") ($AUDIT) |"
