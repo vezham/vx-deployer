@@ -5,6 +5,9 @@ inputs:
   NPM_TOKEN:
     required: true
     type: string
+  NODE_VERSION:
+    description: Optional runtime override; otherwise use matrix.node-version or the root package.json
+    required: false
   HEROUI_AUTH_TOKEN:
     required: false
     type: string
@@ -20,7 +23,8 @@ runs:
     - name: setup | node env
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version || 22 }}
+        node-version: ${{ inputs.NODE_VERSION || matrix.node-version || '' }}
+        node-version-file: ${{ inputs.NODE_VERSION == '' && matrix.node-version == '' && 'package.json' || '' }}
         registry-url: 'https://registry.npmjs.org'
         cache: 'pnpm'
         cache-dependency-path: '**/pnpm-lock.yaml'
@@ -46,6 +50,8 @@ runs:
 
     - name: setup | pnpm install
       shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
       run: pnpm install --frozen-lockfile --ignore-scripts
 
     - name: setup | Install Pro dependencies

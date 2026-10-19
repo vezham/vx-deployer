@@ -23,6 +23,9 @@ runs:
     - name: 📝 Generate Release Summary
       id: gen
       shell: bash
+      env:
+        SUMMARY_VERSION: ${{ inputs.version }}
+        SUMMARY_ARGS: ${{ inputs.args }}
       run: |
         SUMMARY_MD="summary-release.md"
 
@@ -46,10 +49,10 @@ runs:
         # Determine overall result
         ALL_STATUS="$RELEASE"
 
-        VERSION="${{ inputs.version }}"
+        VERSION="$SUMMARY_VERSION"
         [ -z "$VERSION" ] && VERSION="(auto / detected)"
 
-        ARGS="${{ inputs.args }}"
+        ARGS="$SUMMARY_ARGS"
 
         if echo "$ALL_STATUS" | grep -q "failure"; then
           OVERALL="failure"

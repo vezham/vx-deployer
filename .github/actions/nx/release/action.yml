@@ -17,6 +17,7 @@ inputs:
     type: string
     default: ''
   args:
+    description: Whitespace-separated firstRelease, dryRun and verbose flags; shell syntax is rejected
     required: false
     type: string
     default: ''
@@ -30,8 +31,25 @@ runs:
     - name: checklist-release | [NPM] publish
       shell: bash
       run: |
-        pnpm nx run @vx:@vx-ws/release -v=${{ inputs.version }} ${{ inputs.args }}
+        if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9A-Za-z.+-]+$ ]]; then
+          echo 'Version must be a SemVer version or increment without shell syntax.' >&2
+          exit 1
+        fi
+        release_options=()
+        if [[ -n "$RELEASE_VERSION" ]]; then
+          release_options+=("--version=$RELEASE_VERSION")
+        fi
+        read -r -a extra_options <<< "$RELEASE_ARGS"
+        for option in "${extra_options[@]}"; do
+          if [[ ! "$option" =~ ^(--(firstRelease|first-release|dryRun|dry-run|verbose)(=(true|false))?|-d|-fr|--fr)$ ]]; then
+            echo "Unsupported release option: $option" >&2
+            exit 1
+          fi
+        done
+        pnpm nx run @vx:@vx-ws/release -- "${release_options[@]}" "${extra_options[@]}"
       env:
+        RELEASE_VERSION: ${{ inputs.version }}
+        RELEASE_ARGS: ${{ inputs.args }}
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
         NPM_CONFIG_PROVENANCE: ${{ inputs.NPM_PROVENANCE }}
