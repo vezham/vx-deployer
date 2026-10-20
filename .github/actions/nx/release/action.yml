@@ -53,3 +53,4 @@ runs:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         NODE_AUTH_TOKEN: ${{ inputs.NPM_TOKEN }}
         NPM_CONFIG_PROVENANCE: ${{ inputs.NPM_PROVENANCE }}
+        PNPM_CONFIG_PROVENANCE: ${{ inputs.NPM_PROVENANCE }}
