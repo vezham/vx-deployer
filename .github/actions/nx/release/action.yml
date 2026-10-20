@@ -22,6 +22,11 @@ inputs:
     type: string
     default: ''
 
+outputs:
+  version:
+    description: Version selected by the release runner; empty when no version is reported
+    value: ${{ steps.release.outputs.release_version }}
+
 runs:
   using: composite
   steps:
@@ -29,6 +34,7 @@ runs:
       uses: vezham/vx-deployer/.github/actions/common/log-setup@timeline
 
     - name: checklist-release | [NPM] publish
+      id: release
       shell: bash
       run: |
         if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9A-Za-z.+-]+$ ]]; then

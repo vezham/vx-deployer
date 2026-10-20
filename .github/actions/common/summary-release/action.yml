@@ -11,6 +11,9 @@ inputs:
   version:
     description: 'Released version'
     required: false
+  resolved_version:
+    description: 'Version selected by the release runner'
+    required: false
   args:
     description: 'Released args'
     required: false
@@ -25,6 +28,7 @@ runs:
       shell: bash
       env:
         SUMMARY_VERSION: ${{ inputs.version }}
+        SUMMARY_RESOLVED_VERSION: ${{ inputs.resolved_version }}
         SUMMARY_ARGS: ${{ inputs.args }}
       run: |
         SUMMARY_MD="summary-release.md"
@@ -49,8 +53,16 @@ runs:
         # Determine overall result
         ALL_STATUS="$RELEASE"
 
-        VERSION="$SUMMARY_VERSION"
-        [ -z "$VERSION" ] && VERSION="(auto / detected)"
+        VERSION="$SUMMARY_RESOLVED_VERSION"
+        if [ -n "$VERSION" ]; then
+          if [ -z "$SUMMARY_VERSION" ]; then
+            VERSION="$VERSION (auto / detected)"
+          elif [ "$SUMMARY_VERSION" != "$VERSION" ]; then
+            VERSION="$VERSION (requested: $SUMMARY_VERSION)"
+          fi
+        else
+          VERSION="${SUMMARY_VERSION:-(auto / detected)}"
+        fi
 
         ARGS="$SUMMARY_ARGS"
 

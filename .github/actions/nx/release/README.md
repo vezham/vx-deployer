@@ -49,6 +49,20 @@ jobs:
           args: --dryRun
 ```
 
+## Version output
+
+The `version` output exposes the version selected by the caller's release runner.
+The runner must append `release_version=<resolved-version>` to `GITHUB_OUTPUT`;
+the action does not infer it from the requested increment or root manifest.
+Dry runs can report their preview version. If the runner reports no version,
+the output is empty.
+
+Give the action an `id`, expose `steps.<id>.outputs.version` as a job output,
+and pass it to `summary-release` as `resolved_version`. Keep the original request
+in the summary's `version` input. Automatic selection displays, for example,
+`26.0.0-alpha.4 (auto / detected)`; a `patch` request displays the resolved
+version followed by `(requested: patch)`.
+
 ## Provenance behavior
 
 The action maps `NPM_PROVENANCE` to both `NPM_CONFIG_PROVENANCE` for npm-compatible
