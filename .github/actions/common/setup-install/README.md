@@ -5,13 +5,17 @@ The action reads `<APP_PATH>/package.json` first and falls back to the source
 workspace root’s `package.json` when no app runtime is declared. It passes the
 selected file to `actions/setup-node@v4` via `node-version-file`, using
 `volta.node` before `engines.node`. Version ranges are preserved; pin an exact
-version in the source manifest when required. Missing or malformed declarations
-fail explicitly; dependency engine constraints in the lockfile do not select a
-project runtime.
+version in the source manifest when required. If neither manifest declares a Node
+runtime, the action uses Node 24 for compatibility with older callers. Malformed
+manifests or declarations still fail explicitly; dependency engine constraints in
+the lockfile do not select a project runtime.
 
 pnpm uses the existing package-manager setup and installs committed dependencies
-with `--frozen-lockfile`. Callers without `APP_PATH` keep their existing
-`NODE_VERSION` override, matrix version or Node 22 fallback.
+with `--frozen-lockfile`. Without `APP_PATH`, an explicit `NODE_VERSION` override
+takes precedence over the matrix version. When neither is set, the action reads
+Node from root `package.json` via `node-version-file`, using `volta.node` before
+`engines.node`. Node 24 is the fallback only when the manifest has no Node runtime
+declaration; it never overrides a declared version.
 
 ## Verification
 

@@ -6,7 +6,7 @@ inputs:
     description: Source app path; select Node from the app package.json or workspace root package.json
     required: false
   NODE_VERSION:
-    description: Node version override; existing callers retain their matrix version or Node 22
+    description: Optional runtime override when APP_PATH is unset; otherwise use matrix.node-version, root package.json, or Node 24
     required: false
   HEROUI_AUTH_TOKEN:
     required: false
@@ -17,7 +17,7 @@ runs:
   steps:
     - name: 🔵 · 🔎 Resolve source Node version
       id: runtime
-      if: ${{ inputs.APP_PATH != '' }}
+      if: ${{ inputs.APP_PATH != '' || (inputs.NODE_VERSION == '' && matrix.node-version == '') }}
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
@@ -33,7 +33,7 @@ runs:
     - name: 🟠 · 🟢 Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ inputs.APP_PATH == '' && (inputs.NODE_VERSION || matrix.node-version || 22) || '' }}
+        node-version: ${{ inputs.APP_PATH == '' && (inputs.NODE_VERSION || matrix.node-version) || (steps.runtime.outputs.node_version_file == '' && '24' || '') }}
         node-version-file: ${{ steps.runtime.outputs.node_version_file }}
         cache: 'pnpm'
         cache-dependency-path: '**/pnpm-lock.yaml'
