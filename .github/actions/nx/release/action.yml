@@ -26,6 +26,12 @@ outputs:
   version:
     description: Version selected by the release runner; empty when no version is reported
     value: ${{ steps.release.outputs.release_version }}
+  published_count:
+    description: Successful package publish results; zero for dry runs and empty when unknown
+    value: ${{ steps.release.outputs.release_published_count }}
+  publishable_count:
+    description: Total workspace projects eligible for publishing
+    value: ${{ steps.release.outputs.release_publishable_count }}
 
 runs:
   using: composite

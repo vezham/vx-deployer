@@ -14,6 +14,12 @@ inputs:
   resolved_version:
     description: 'Version selected by the release runner'
     required: false
+  published_count:
+    description: 'Successful package publish results; zero for dry runs'
+    required: false
+  publishable_count:
+    description: 'Total publishable workspace packages'
+    required: false
   args:
     description: 'Released args'
     required: false
@@ -29,6 +35,8 @@ runs:
       env:
         SUMMARY_VERSION: ${{ inputs.version }}
         SUMMARY_RESOLVED_VERSION: ${{ inputs.resolved_version }}
+        SUMMARY_PUBLISHED_COUNT: ${{ inputs.published_count }}
+        SUMMARY_PUBLISHABLE_COUNT: ${{ inputs.publishable_count }}
         SUMMARY_ARGS: ${{ inputs.args }}
       run: |
         SUMMARY_MD="summary-release.md"
@@ -89,6 +97,14 @@ runs:
           echo "|------|--------|"
           echo "| 🚀 Release | $(result_icon "$RELEASE") ($RELEASE) |"
           echo "| 🔢 Version | ${VERSION} |"
+
+          if [[ "$SUMMARY_PUBLISHABLE_COUNT" =~ ^[0-9]+$ ]]; then
+            PUBLISHED_COUNT="—"
+            if [[ "$SUMMARY_PUBLISHED_COUNT" =~ ^[0-9]+$ ]]; then
+              PUBLISHED_COUNT="$SUMMARY_PUBLISHED_COUNT"
+            fi
+            echo "| 📦 Packages published | ${PUBLISHED_COUNT}/${SUMMARY_PUBLISHABLE_COUNT} |"
+          fi
 
           # only include args row if provided
           if [ -n "$ARGS" ]; then

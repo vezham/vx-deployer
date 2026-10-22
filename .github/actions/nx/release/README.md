@@ -63,6 +63,21 @@ in the summary's `version` input. Automatic selection displays, for example,
 `26.0.0-alpha.4 (auto / detected)`; a `patch` request displays the resolved
 version followed by `(requested: patch)`.
 
+## Package count outputs
+
+The caller can append `release_published_count` and `release_publishable_count`
+to `GITHUB_OUTPUT`. The action exposes them as `published_count` and
+`publishable_count`; pass both through the release job outputs to `summary-release`
+using the same input names. The summary then includes **Packages published: 5/8**.
+
+The denominator includes every workspace package eligible for publishing, even
+when only a subset belongs to this release. The numerator counts successful
+publish results for selected packages with a new version. Nx treats an already
+published version as success, so it can be counted without another upload.
+Dry runs and no-change runs report zero published packages. An interrupted publish
+with unknown results leaves the numerator empty and displays `—/8`.
+Older callers that report no total retain their existing summary without a count.
+
 ## Provenance behavior
 
 The action maps `NPM_PROVENANCE` to both `NPM_CONFIG_PROVENANCE` for npm-compatible
