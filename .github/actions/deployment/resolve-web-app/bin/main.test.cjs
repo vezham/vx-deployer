@@ -441,6 +441,7 @@ test('grouped registry derives categories and indexes IDs globally without mutat
   const config = groupedCatalog()
   const template = config['apps-cdns']['test-app']
   config.apps = { books: structuredClone(template) }
+  config['apps-docs'] = { developers: structuredClone(template) }
   config['apps-internals'] = { demo: structuredClone(template) }
   config['apps-platforms'] = { academy: structuredClone(template) }
   config['apps-pods'] = { accounts: structuredClone(template) }
@@ -451,6 +452,7 @@ test('grouped registry derives categories and indexes IDs globally without mutat
   for (const [category, expected] of [
     ['apps', 'books'],
     ['cdns', 'test-app'],
+    ['docs', 'developers'],
     ['internals', 'demo'],
     ['platforms', 'academy'],
     ['pods', 'accounts'],

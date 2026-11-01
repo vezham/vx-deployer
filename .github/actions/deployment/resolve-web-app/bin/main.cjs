@@ -23,6 +23,7 @@ const isObject = value =>
 const groups = {
   apps: 'apps',
   'apps-cdns': 'cdns',
+  'apps-docs': 'docs',
   'apps-internals': 'internals',
   'apps-platforms': 'platforms',
   'apps-pods': 'pods',

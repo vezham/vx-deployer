@@ -8,7 +8,7 @@ Choose exactly one selector. Matrix outputs stay JSON for GitHub Actions'
 
 The parser preserves numeric and boolean values, supports comments and aliases,
 and rejects duplicate keys, malformed YAML and multiple documents. The registry
-uses `schema: 2`, shared `defaults` and top-level groups (`apps`, `apps-cdns`,
+uses `schema: 2`, shared `defaults` and top-level groups (`apps`, `apps-cdns`, `apps-docs`,
 `apps-internals`, `apps-platforms`, `apps-pods`, `apps-suites`, `apps-widgets`).
 Categories are derived from these keys; entries omit `category`. IDs must be
 unique across groups, including disabled entries. Unknown app IDs or invalid
