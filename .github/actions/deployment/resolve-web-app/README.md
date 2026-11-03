@@ -21,6 +21,18 @@ registry. Use lowercase `true`/`false` for booleans. Shared defaults and per-app
 handled after source checkout by `common/setup-install`, using the app or workspace
 `package.json`; the registry does not provide a Node version.
 
+## Nx project names
+
+An app may set `project` when its Nx project name differs from its registry ID.
+For example, `tamizhi-test` may resolve `project: tamizhi` and `path: apps/tamizhi`.
+The resolved `project` output defaults to the registry app ID when omitted.
+Names allow letters, numbers, dots, underscores, hyphens and an optional npm scope.
+Empty names, target separators and shell syntax are rejected during parsing.
+
+The controller forwards this output to the build workflow's optional `PROJECT`
+input for Nx target execution. Tracking, scheduling, promotion validation and
+`V_APP_NAME` continue to use the registry ID; the source path is unchanged.
+
 ## Parser maintenance
 
 `js-yaml` is an action-local dependency, pinned to **5.4.3** in `package.json`

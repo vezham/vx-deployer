@@ -43,6 +43,9 @@ outputs:
   app:
     description: Application ID
     value: ${{ steps.resolve.outputs.app }}
+  project:
+    description: Nx project name; defaults to the registry app ID
+    value: ${{ steps.resolve.outputs.project }}
   repository:
     description: TVA caller repository or configured promotion repository
     value: ${{ steps.resolve.outputs.repository }}

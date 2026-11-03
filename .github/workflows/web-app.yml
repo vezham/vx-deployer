@@ -16,6 +16,10 @@ on:
       APP_NAME:
         required: true
         type: string
+      PROJECT:
+        description: Nx project name; omit to use APP_NAME
+        type: string
+        default: ''
       GIT_REPO:
         required: true
         type: string
@@ -147,6 +151,8 @@ jobs:
           HEROUI_AUTH_TOKEN: ${{ secrets.HEROUI_AUTH_TOKEN }}
       - name: 🟠 · 🏗️ Generate build
         uses: vezham/vx-deployer/.github/actions/nx/gen-build@timeline
+        with:
+          PROJECT: ${{ inputs.PROJECT || inputs.APP_NAME }}
       - name: 🟠 · 🔥 Deploy to Firebase
         id: deployment
         uses: vezham/vx-deployer/.github/actions/cloud-providers/firebase@timeline

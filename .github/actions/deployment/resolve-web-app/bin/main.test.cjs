@@ -56,6 +56,79 @@ test('YAML registry supports comments and preserves boolean and schema version t
   assert.equal(Object.hasOwn(app, 'node_version'), false)
 })
 
+test('omitted project keeps the existing registry ID as the Nx project', () => {
+  const resolved = resolveWebApp(catalog(), {
+    app: 'test-app',
+    environment: 'production'
+  })
+  assert.equal(resolved.project, 'test-app')
+})
+
+for (const environment of ['tva', 'dev', 'qa', 'preview', 'production']) {
+  test(`clone project alias retains independent deployment identity in ${environment}`, () => {
+    const config = catalog()
+    const original = config['apps-cdns']['test-app']
+    config['apps-cdns']['test-app-clone'] = {
+      ...structuredClone(original),
+      repository: 'example/clone',
+      project: 'test-app'
+    }
+    const resolved = resolveWebApp(config, {
+      app: 'test-app-clone',
+      ...(environment === 'tva'
+        ? { caller: 'timeline', callerRepository: 'example/clone' }
+        : { environment })
+    })
+    assert.equal(resolved.app, 'test-app-clone')
+    assert.equal(resolved.project, 'test-app')
+    assert.equal(resolved.repository, 'example/clone')
+    assert.equal(resolved.path, original.path)
+    assert.equal(resolved.track_environment, environment)
+    assert.deepEqual(listWebApps(config), ['test-app', 'test-app-clone'])
+    assert.equal(
+      resolveWebApp(config, {
+        app: 'test-app',
+        environment: 'production'
+      }).repository,
+      'example/apps'
+    )
+  })
+}
+
+for (const project of ['@example/tamizhi', 'Tamizhi.docs_2']) {
+  test(`Nx project accepts scoped and package names: ${project}`, () => {
+    const config = catalog()
+    config['apps-cdns']['test-app'].project = project
+    assert.equal(
+      resolveWebApp(config, {
+        app: 'test-app',
+        environment: 'production'
+      }).project,
+      project
+    )
+  })
+}
+
+for (const project of [
+  '',
+  null,
+  false,
+  42,
+  'tamizhi:build',
+  '../tamizhi',
+  'tamizhi; echo test',
+  '$(echo test)',
+  'test app',
+  '-tamizhi',
+  'apps/tamizhi'
+]) {
+  test(`invalid Nx project fails registry parsing: ${JSON.stringify(project)}`, () => {
+    const config = catalog()
+    config['apps-cdns']['test-app'].project = project
+    assert.throws(() => parseCatalog(yaml.dump(config)), /Invalid Nx project/)
+  })
+}
+
 test('50 YAML app entries resolve through the same shared registry', () => {
   const config = catalog()
   const template = config['apps-cdns']['test-app']

@@ -1,19 +1,29 @@
 name: 🏗️ Build web app
 description: Nx for Gen apps build to deploy
 
+inputs:
+  PROJECT:
+    description: Nx project name; defaults to VX_APP_NAME for existing callers
+    required: false
+    default: ''
+
 runs:
   using: composite
   steps:
     - name: 🔵 · ⚙️ Generate deployment configuration
       continue-on-error: true
       shell: bash
+      env:
+        NX_PROJECT: ${{ inputs.PROJECT || env.VX_APP_NAME }}
       run: |
-        pnpm nx run ${{ env.VX_APP_NAME }}:deploy:generate
+        pnpm nx run "${NX_PROJECT}:deploy:generate"
 
     - name: 🔵 · 🏗️ Build app
       shell: bash
+      env:
+        NX_PROJECT: ${{ inputs.PROJECT || env.VX_APP_NAME }}
       run: |
-        pnpm nx run ${{ env.VX_APP_NAME }}:build
+        pnpm nx run "${NX_PROJECT}:build"
 
     - name: 🟠 · 📦 Upload npm failure logs
       if: failure()

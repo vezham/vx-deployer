@@ -51,6 +51,14 @@ const getCatalogApps = catalog => {
         throw new Error(`Invalid web app entry: ${group}/${app}`)
       if (Object.hasOwn(apps, app))
         throw new Error(`Duplicate web app ID across groups: ${app}`)
+      if (
+        config.project !== undefined &&
+        (typeof config.project !== 'string' ||
+          !/^(?:@[a-zA-Z0-9_.-]+\/)?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(
+            config.project
+          ))
+      )
+        throw new Error(`Invalid Nx project for ${app}`)
       if (Object.hasOwn(config, 'category'))
         throw new Error(
           `Remove category from ${app}; it is derived from ${group}`
@@ -171,6 +179,7 @@ const resolveWebApp = (
   }
   return {
     app,
+    project: config.project ?? app,
     category: config.category,
     repository: caller ? callerRepository : config.repository,
     path: config.path,
